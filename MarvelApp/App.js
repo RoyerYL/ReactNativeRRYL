@@ -9,12 +9,7 @@ const Stack = createStackNavigator();
 const HomeScreen = ({ navigation, route }) => {
   return (
     <View>
-      <Button
-        title="Black Widow"
-        onPress={() =>
-          navigation.navigate('Profile', { name: 'Black Widow' })
-        }
-      />
+ 
       <Button
         title="Black Panther"
         onPress={() =>
