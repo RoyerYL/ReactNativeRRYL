@@ -1,22 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, Button, FlatList } from 'react-native';
 import axios from 'axios';
+import { useFocusEffect } from '@react-navigation/native';
 
 const ArticuloList = ({ navigation }) => {
   const [articulos, setArticulos] = useState([]);
 
-  useEffect(() => {
-    const fetchArticulos = async () => {
-      try {
-        const response = await axios.get('backendrryl.onrender.com/tienda/articulo');
-        setArticulos(response.data.items);
-      } catch (error) {
-        console.error('Error al obtener los artículos:', error.response.data);
-      }
-    };
+  const fetchArticulos = async () => {
+    try {
+      const response = await axios.get('https://backendrryl.onrender.com/tienda/articulo');
+      console.log(response.data);
+      setArticulos(response.data.items);
+    } catch (error) {
+      console.error('Error al obtener los artículos:', error.response.data);
+    }
+  };
 
-    fetchArticulos();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchArticulos();
+    }, [])
+  );
 
   return (
     <View>
