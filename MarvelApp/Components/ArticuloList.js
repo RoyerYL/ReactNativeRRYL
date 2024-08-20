@@ -5,14 +5,15 @@ import { useFocusEffect } from '@react-navigation/native';
 
 const ArticuloList = ({ navigation }) => {
   const [articulos, setArticulos] = useState([]);
-
+  const [load, setLoad]=useState(true)
   const fetchArticulos = async () => {
     try {
       const response = await axios.get('https://backendrryl.onrender.com/tienda/articulo');
-      console.log(response.data);
       setArticulos(response.data.items);
     } catch (error) {
       console.error('Error al obtener los artículos:', error.response.data);
+    }finally{
+      setLoad(false)
     }
   };
 
@@ -26,27 +27,23 @@ const ArticuloList = ({ navigation }) => {
     <View style={styles.articuloContainer}>
       <Text style={styles.articuloTitle}>Nombre: {item.name}</Text>
       <Text>ID: {item.id}</Text>
-      <Text>Stock: {item.stock}</Text>
-      <Text>Stock Mínimo: {item.stockMin}</Text>
-      <Text>Costo en Pesos: {item.costoPeso}</Text>
-      <Text>Costo en Dólares: {item.costoDolar}</Text>
-      <Text>IVA: {item.iva}</Text>
-      <Text>Ganancia: {item.ganancia}</Text>
-      <Text>Precio de Venta: {item.precioVenta}</Text>
-      <Text>Ganancia 2: {item.ganancia_2}</Text>
-      <Text>Precio de Venta 2: {item.precioVenta_2}</Text>
-      <Text>Descripción: {item.descripcion}</Text>
-      <Text>Imagen: {item.img}</Text>
-      <Text>Activo: {item.activo ? 'Sí' : 'No'}</Text>
-      <Text>Cantidad Vendidos: {item.cantVendidos}</Text>
-      <Text>Categoría ID: {item.CategoriaId}</Text>
-      <Text>Proveedor ID: {item.ProvedorId}</Text>
-      <Text>Precio en Dólares: {item.precioEnDolar ? 'Sí' : 'No'}</Text>
+      {/* Otros campos del artículo */}
+
+      {/* Botón para ver los detalles */}
+      <Button
+        title="Ver Detalles"
+        onPress={() => navigation.navigate('Detail', { item })}
+      />
     </View>
   );
 
   return (
     <FlatList
+    ListHeaderComponent={
+      <View>
+        {load?<Text>Cargando...</Text>:<></>}
+      </View>
+    }
       data={articulos}
       keyExtractor={item => item.id.toString()}
       renderItem={renderItem}
