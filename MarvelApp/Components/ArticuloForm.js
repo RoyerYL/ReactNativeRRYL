@@ -165,7 +165,6 @@ const ArticuloForm = ({ navigation }) => {
           onChangeText={value => handleInputChange('ProvedorId', value)}
         />
         <Button title="Crear Artículo" onPress={handleSubmit} />
-        {/* {message ? <Text style={styles.message}>{message}</Text> : null}   */}
       </View>
     </ScrollView>
   );
