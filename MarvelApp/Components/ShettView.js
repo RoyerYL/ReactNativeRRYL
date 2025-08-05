@@ -3,52 +3,73 @@ import { ScrollView, Text, View } from 'react-native';
 
 const SheetView = () => {
   const [sections, setSections] = useState([]);
-  const SHEET_ID = '1WFMURuJ2SI92L-ig7eOwjBCz1ZJ6tvJScX-KULDsXQc';
-  const TU_API_KEY = 'AIzaSyAN0iI2H0XeFFWLNpMmE866R2SjMAi7xfI';
-  const SHEET_NAME = 'Jack'; // Usá el nombre correcto de tu pestaña
+  const SHEET_ID = '1zAdqkuP0MWF7MKpHqB4IoWidSTuQz0_ORX8-TVMcDOk';
+  const API_KEY = 'AIzaSyAStpB3GNAAGlmAM7nBVvFp5wcsKlyEtCE';
 
- useEffect(() => {
-    fetch(`https://sheets.googleapis.com/v4/spreadsheets/1WFMURuJ2SI92L-ig7eOwjBCz1ZJ6tvJScX-KULDsXQc/values/Hoja1!A1:D100?key=${TU_API_KEY}
-`)
+  useEffect(() => {
+    // Primero obtenemos los nombres de las hojas
+    fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?key=${API_KEY}`)
       .then(res => res.json())
-      .then(data => {
-        const rows = data.values;
-        const headers = rows[1]; // Asumimos que fila 2 tiene los encabezados
-        const result = [];
-        let currentSection = null;
+      .then(async meta => {
+        const sheetTitles = meta.sheets.map(sheet => sheet.properties.title);
+        const allSections = [];
 
-        for (let i = 2; i < rows.length; i++) {
-          const row = rows[i];
-          if (row[0] && row.length === 1) {
-            // es una sección (ej: RECTAS, OVERLOCK, etc.)
-            currentSection = { section: row[0], items: [] };
-            result.push(currentSection);
-          } else if (row.length > 1 && currentSection) {
-            const item = {};
-            headers.forEach((header, idx) => {
-              item[header] = row[idx];
-            });
-            currentSection.items.push(item);
+        for (let title of sheetTitles) {
+          const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${title}!A1:H1000?key=${API_KEY}`);
+          const data = await res.json();
+
+          if (!data.values || data.values.length < 2) continue;
+
+          const rows = data.values;
+          const headers = rows[1];
+          const result = { sheet: title, sections: [] };
+          let currentSection = null;
+
+          for (let i = 2; i < rows.length; i++) {
+            const row = rows[i];
+
+            if (row[0] && row.length === 1) {
+              // Nueva sección como RECTAS, OVERLOCK, etc.
+              currentSection = { section: row[0], items: [] };
+              result.sections.push(currentSection);
+            } else if (row.length > 1 && currentSection) {
+              const item = headers.reduce((obj, header, idx) => {
+                obj[header] = row[idx] || '';
+                return obj;
+              }, {});
+              currentSection.items.push(item);
+            }
           }
+
+          allSections.push(result);
         }
 
-        setSections(result);
+        setSections(allSections);
       })
       .catch(err => console.error('Error:', err));
   }, []);
 
   return (
     <ScrollView style={{ padding: 10 }}>
-      {sections.map((sec, i) => (
-        <View key={i} style={{ marginBottom: 20 }}>
-          <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 5 }}>{sec.section}</Text>
-          {sec.items.map((item, j) => (
-            <View key={j} style={{ backgroundColor: '#eee', padding: 8, marginVertical: 4 }}>
-              <Text>Código: {item['CODIGO']}</Text>
-              <Text>Máquina: {item['MAQUINAS']}</Text>
-              <Text>Precio gremio: {item['PRECIO DOLAR AL GREMIO']}</Text>
-              <Text>Precio público: {item['PRECIO FINAL EN DOLARES AL PUBLICO']}</Text>
-              <Text>Pesos: {item['PRECIO FINAL EN PESOS']}</Text>
+      {sections.map((sheet, i) => (
+        <View key={i} style={{ marginBottom: 30 }}>
+          <Text style={{ fontSize: 22, fontWeight: 'bold', marginBottom: 10 }}>{sheet.sheet}</Text>
+
+          {sheet.sections.map((sec, j) => (
+            <View key={j} style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 5 }}>{sec.section}</Text>
+
+              {sec.items.map((item, k) => (
+                <View key={k} style={{ backgroundColor: '#eee', padding: 8, marginVertical: 4 }}>
+                  <Text>Código: {item['CODIGO']}</Text>
+                  {console.log(sections)}
+                  
+                  <Text>Máquina: {item['MAQUINAS']}</Text>
+                  <Text>Precio gremio: {item['PRECIO DOLAR AL GREMIO']}</Text>
+                  <Text>Precio público: {item['PRECIO FINAL EN DOLARES AL PUBLICO']}</Text>
+                  <Text>Pesos: {item['PRECIO FINAL EN PESOS']}</Text>
+                </View>
+              ))}
             </View>
           ))}
         </View>
