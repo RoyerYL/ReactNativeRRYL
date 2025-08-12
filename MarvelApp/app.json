@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "MarvelApp",
-    "slug": "MarvelApp",
+    "name": "Maquineria",
+    "slug": "Maquineria",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,9 +15,11 @@
       "supportsTablet": true
     },
     "android": {
-      "permissions": ["INTERNET"],
+      "permissions": [
+        "INTERNET"
+      ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon.jpeg",
         "backgroundColor": "#ffffff"
       },
       "package": "com.rryl.MarvelApp"
@@ -27,8 +29,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "cec0531d-f41a-4570-9ec0-2ee26f852d5c"
+        "projectId": "82335746-39cf-48f1-9615-2347a1461717"
       }
-    }
+    },
+    "owner": "rryl"
   }
 }

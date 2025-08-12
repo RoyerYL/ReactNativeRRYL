@@ -16,13 +16,13 @@ const MarcaScreen = () => {
   const allSections = ['TODAS', ...new Set(marcaData.map(sec => sec.section))];
 
   return (
-    <View style={{ flex: 1, padding: 10 }}>
-      <Text style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 10 }}>{marcaName}</Text>
+    <View style={{backgroundColor: '#00aeff69', flex: 1, padding: 10 }}>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', margin:"auto" }}>{marcaName}</Text>
 
       <Picker
         selectedValue={selectedSection}
         onValueChange={setSelectedSection}
-        style={{ marginBottom: 20 }}
+        style={{ marginBottom: 20 , color: 'black' ,fontSize: 20}}
       >
         {allSections.map(section => (
           <Picker.Item key={section} label={section} value={section} />
@@ -31,15 +31,17 @@ const MarcaScreen = () => {
 
       <ScrollView>
         {filteredData.map((sec, i) => (
-          <View key={i} style={{ marginBottom: 15 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600', marginBottom: 6 }}>{sec.section}</Text>
+          <View key={i} style={{ marginBottom: 15 ,border: "1px solid black" , borderRadius: "10px" }}>
+            <Text style={{ fontSize: 30, fontWeight: 'bold', margin:"auto" ,  color: 'white' }}>{sec.section}</Text>
             {sec.items.map((item, j) => (
-              <View key={j} style={{ backgroundColor: '#eee', padding: 8, marginBottom: 4, borderRadius: 4 }}>
-                <Text><Text style={{ fontWeight: 'bold' }}>Código:</Text> {item['CODIGO']}</Text>
-                <Text><Text style={{ fontWeight: 'bold' }}>Máquina:</Text> {item['MAQUINAS']}</Text>
-                <Text><Text style={{ fontWeight: 'bold' }}>Precio gremio:</Text> {item['PRECIO DOLAR AL GREMIO']}</Text>
-                <Text><Text style={{ fontWeight: 'bold' }}>Precio público:</Text> {item['PRECIO FINAL EN DOLARES AL PUBLICO']}</Text>
-                <Text><Text style={{ fontWeight: 'bold' }}>Precio en pesos:</Text> {item['PRECIO FINAL EN PESOS']}</Text>
+              <View key={j} style={{ padding: 0, marginBottom: 4, borderRadius: 4 }}>
+                
+                <Text style={{ fontWeight: 'bold' ,padding: 10, fontSize: 20 , color:"black" }}>Máquina: {item['MAQUINAS']}</Text>
+                <Text style={{padding: 10, fontWeight: 'bold' }}>Código: {item['CODIGO']}</Text>
+                <Text style={{  padding: 10}}>Precio gremio USD: {item['PRECIO DOLAR AL GREMIO']}</Text>
+                <Text style={{ padding: 10 }}>Precio público USD: {item['PRECIO FINAL EN DOLARES AL PUBLICO']}</Text>
+                <Text style={{ padding: 10 }}>Cotización Dolar: {item['COTIZACION DEL DOLAR']}</Text>
+                <Text style={{ fontWeight: 'bold' ,fontSize: 20 , backgroundColor: '#1eff00a2',margin:0 ,color: 'black' }}>Precio en pesos: {item['PRECIO FINAL EN PESOS']}</Text>
               </View>
             ))}
           </View>

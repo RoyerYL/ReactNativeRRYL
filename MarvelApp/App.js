@@ -12,8 +12,33 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Marcas">
-        <Stack.Screen name="Marcas" component={SheetView} />
-        <Stack.Screen name="MarcaDetalle" component={MarcaScreen} />
+        <Stack.Screen name="Marcas"
+          options={{
+            title: 'Marcas',
+            headerStyle: {
+              backgroundColor: '#003b77', // color de fondo del header
+            },
+            headerTintColor: '#fff', // color del texto y flecha de atrás
+            headerTitleStyle: {
+              fontWeight: 'bold',
+              fontSize: 24,
+            },
+            headerTitleAlign: 'center', // centrar el título
+          }} component={SheetView} />
+        <Stack.Screen name="MarcaDetalle"
+          options={{
+            title: 'Maquinas',
+            headerStyle: {
+              backgroundColor: '#003b77', // color de fondo del header
+            },
+            headerTintColor: '#fff', // color del texto y flecha de atrás
+            headerTitleStyle: {
+              fontWeight: 'bold',
+              fontSize: 24,
+            },
+            headerTitleAlign: 'center', // centrar el título
+          }}
+          component={MarcaScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

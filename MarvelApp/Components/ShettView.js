@@ -35,7 +35,7 @@ const SheetView = () => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent:'center', alignItems:'center' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" />
       </View>
     );
@@ -43,7 +43,7 @@ const SheetView = () => {
 
   if (!data) {
     return (
-      <View style={{ flex: 1, justifyContent:'center', alignItems:'center' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text>No hay datos para mostrar</Text>
         <Button title="Cargar datos" onPress={refreshData} />
       </View>
@@ -51,8 +51,22 @@ const SheetView = () => {
   }
 
   return (
-    <View style={{ flex: 1, padding: 10 }}>
-      <Button title="Actualizar datos" onPress={refreshData} />
+    <View style={{backgroundColor: '#ffb700a9', flex: 1, padding: 10 }}>
+      <TouchableOpacity
+        onPress={refreshData}
+        style={{
+          backgroundColor: '#ff8000',
+          paddingVertical: 12,
+          paddingHorizontal: 20,
+          borderRadius: 8,
+          alignItems: 'center',
+          marginBottom: 10
+        }}
+      >
+        <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+          Actualizar datos
+        </Text>
+      </TouchableOpacity>
       <ScrollView style={{ marginTop: 10 }}>
         {Object.entries(data).map(([marcaName, marcaData]) => (
           <TouchableOpacity
