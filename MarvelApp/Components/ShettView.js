@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 
 import { loadAllData } from './utils'; // extraí esa lógica si querés
+import { ImageBackground } from 'react-native-web';
 
 const SheetView = () => {
   const [data, setData] = useState(null);
@@ -51,11 +52,36 @@ const SheetView = () => {
   }
 
   return (
-    <View style={{backgroundColor: '#ffb700a9', flex: 1, padding: 10 }}>
-      <TouchableOpacity
+    <ImageBackground
+      source={require('../assets/logoMequitex.jpg')} // Imagen local en tu carpeta assets
+      style={{ flex: 1 ,width: '100%', height: '100%' , resizeMode: 'cover' , backgroundColor: '#black' }}
+      resizeMode="cover" // 'cover', 'contain', 'stretch' según quieras
+    >
+      <Text style={{ fontSize: 24, fontWeight: 'bold', marginTop: 10, color: '#black '  , textAlign: 'center'  }}>Precio de Maquinas</Text>
+      <ScrollView style={{ marginTop: 10 }}>
+        {Object.entries(data).map(([marcaName, marcaData]) => (
+          <TouchableOpacity
+            key={marcaName}
+            style={{ padding: 16, 
+              backgroundColor: '#eeeeeeb9', 
+              marginBottom: 10, 
+              borderRadius: 8, 
+              borderWidth: 1,
+              borderColor: '#000', 
+              borderStyle: 'solid',  // También puede ser 'dashed' o 'dotted'
+ }}
+            onPress={() => navigation.navigate('MarcaDetalle', { marcaName, marcaData })}
+          >
+            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{marcaName}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+            <TouchableOpacity
         onPress={refreshData}
         style={{
           backgroundColor: '#ff8000',
+
           paddingVertical: 12,
           paddingHorizontal: 20,
           borderRadius: 8,
@@ -67,18 +93,7 @@ const SheetView = () => {
           Actualizar datos
         </Text>
       </TouchableOpacity>
-      <ScrollView style={{ marginTop: 10 }}>
-        {Object.entries(data).map(([marcaName, marcaData]) => (
-          <TouchableOpacity
-            key={marcaName}
-            style={{ padding: 16, backgroundColor: '#eee', marginBottom: 10, borderRadius: 8 }}
-            onPress={() => navigation.navigate('MarcaDetalle', { marcaName, marcaData })}
-          >
-            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{marcaName}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
+    </ImageBackground>
   );
 };
 

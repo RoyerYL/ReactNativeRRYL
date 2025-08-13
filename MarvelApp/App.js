@@ -24,6 +24,7 @@ export default function App() {
               fontSize: 24,
             },
             headerTitleAlign: 'center', // centrar el título
+            headerShown: false
           }} component={SheetView} />
         <Stack.Screen name="MarcaDetalle"
           options={{
