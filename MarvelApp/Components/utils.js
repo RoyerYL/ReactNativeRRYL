@@ -12,7 +12,7 @@ const fetchSheetNames = async () => {
 };
 
 const fetchSheetData = async (sheetName) => {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}?key=${API_KEY}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}!A1:I200?key=${API_KEY}`;
   const res = await fetch(url);
   const json = await res.json();
   return json.values; // array de arrays
@@ -28,17 +28,43 @@ const parseSheet = (values) => {
   for (let i = 2; i < values.length; i++) {
     const row = values[i];
     if (row.length === 1 && row[0].trim() !== '') {
-      currentSection = { section: row[0], items: [] };
+      currentSection = { section: row[0], items: [], ofertas: 0 };
       result.push(currentSection);
     } else if (currentSection && row.length > 1) {
       const item = {};
       headers.forEach((header, idx) => {
         item[header] = row[idx] ?? '';
       });
+      // 🔍 Busca "OFERTA" en cualquier celda de la fila
+      const tieneOferta = row.some(celda =>
+        typeof celda === 'string' && celda.trim().toUpperCase() === 'OFERTA'
+      );
+
+      item['OFERTA'] = tieneOferta ? 1 : 0;
+
+      if (tieneOferta) {
+        currentSection.ofertas += 1; // Incrementa el contador
+      }
       currentSection.items.push(item);
     }
   }
+
   return result;
+};
+
+// 🆕 Genera resumen por marca
+const getBrandSummary = (allData) => {
+  const resumen = {};
+  for (const marca in allData) {
+    let totalMaquinas = 0;
+    let totalOfertas = 0;
+    allData[marca].forEach(section => {
+      totalMaquinas += section.items.length;
+      totalOfertas += section.ofertas || 0;
+    });
+    resumen[marca] = { maquinas: totalMaquinas, ofertas: totalOfertas };
+  }
+  return resumen;
 };
 
 const loadAllData = async () => {
@@ -50,8 +76,12 @@ const loadAllData = async () => {
     allData[sheetName] = parseSheet(values);
   }
 
-  await AsyncStorage.setItem('@sheetData', JSON.stringify(allData));
-  return allData;
+  const resumenPorMarca = getBrandSummary(allData);
+
+
+  await AsyncStorage.setItem('@sheetData', JSON.stringify({ allData, resumenPorMarca }));
+
+  return { allData, resumenPorMarca };
 };
 
-export { loadAllData , parseSheet , fetchSheetNames  , fetchSheetData};
+export { loadAllData, parseSheet, fetchSheetNames, fetchSheetData };

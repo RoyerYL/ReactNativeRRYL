@@ -16,6 +16,8 @@ const SheetView = () => {
     const jsonStr = await AsyncStorage.getItem('@sheetData');
     if (jsonStr) {
       setData(JSON.parse(jsonStr));
+      console.log(JSON.parse(jsonStr));
+      
     } else {
       const freshData = await loadAllData();
       setData(freshData);
@@ -30,6 +32,7 @@ const SheetView = () => {
   const refreshData = async () => {
     setLoading(true);
     const freshData = await loadAllData();
+
     setData(freshData);
     setLoading(false);
   };
@@ -54,30 +57,46 @@ const SheetView = () => {
   return (
     <ImageBackground
       source={require('../assets/logoMequitex.jpg')} // Imagen local en tu carpeta assets
-      style={{ flex: 1 ,width: '100%', height: '100%' , resizeMode: 'cover' , backgroundColor: '#black' }}
+      style={{ flex: 1, width: '100%', height: '100%', resizeMode: 'cover', backgroundColor: '#black' }}
       resizeMode="cover" // 'cover', 'contain', 'stretch' según quieras
     >
-      <Text style={{ fontSize: 24, fontWeight: 'bold', marginTop: 10, color: '#black '  , textAlign: 'center'  }}>Precio de Maquinas</Text>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', marginTop: 10, color: '#black ', textAlign: 'center' }}>Precio de Maquinas</Text>
       <ScrollView style={{ marginTop: 10 }}>
-        {Object.entries(data).map(([marcaName, marcaData]) => (
+        {Object.entries(data.resumenPorMarca).map(([marcaName, resumen]) => (
           <TouchableOpacity
             key={marcaName}
-            style={{ padding: 16, 
-              backgroundColor: '#eeeeeeb9', 
-              marginBottom: 10, 
-              borderRadius: 8, 
+            style={{
+              padding: 16,
+              backgroundColor: '#eeeeeeb9',
+              marginBottom: 10,
+              borderRadius: 8,
               borderWidth: 1,
-              borderColor: '#000', 
-              borderStyle: 'solid',  // También puede ser 'dashed' o 'dotted'
- }}
-            onPress={() => navigation.navigate('MarcaDetalle', { marcaName, marcaData })}
+              borderColor: '#000',
+              borderStyle: 'solid',
+            }}
+            onPress={() =>
+              navigation.navigate('MarcaDetalle', {
+                marcaName,
+                marcaData: data.allData[marcaName],
+              })
+            }
           >
             <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{marcaName}</Text>
+            <Text>Máquinas: {resumen.maquinas}</Text>
+            <Text>Ofertas: {resumen.ofertas}</Text>
+
+            {/* Mensaje especial si hay ofertas */}
+            {resumen.ofertas > 0 && (
+              <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 5 }}>
+                🔥 ¡Esta marca tiene ofertas disponibles!
+              </Text>
+            )}
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-            <TouchableOpacity
+
+      <TouchableOpacity
         onPress={refreshData}
         style={{
           backgroundColor: '#ff8000',
