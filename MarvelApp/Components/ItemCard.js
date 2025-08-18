@@ -119,6 +119,25 @@ const ItemCard = ({ item, textColor , backgroundColor}) => {
                     </Text>
                 </Animated.View>
             )}
+            {
+                item['SIN_STOCK'] === 1 && (
+                    <Animated.View
+                        style={{
+                            position: 'absolute',
+                            top: 5,
+                            right: 5,
+                            backgroundColor: 'black',
+                            paddingVertical: 4,
+                            paddingHorizontal: 8,
+                            borderRadius: 6,
+                        }}
+                    >
+                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>
+                            SIN STOCK
+                        </Text>
+                    </Animated.View>
+                )
+            }
         </View>
     );
 };

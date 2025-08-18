@@ -1,4 +1,3 @@
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SHEET_ID = '1zAdqkuP0MWF7MKpHqB4IoWidSTuQz0_ORX8-TVMcDOk';
@@ -12,7 +11,9 @@ const fetchSheetNames = async () => {
 };
 
 const fetchSheetData = async (sheetName) => {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}!A1:I200?key=${API_KEY}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(
+    sheetName
+  )}!A1:I200?key=${API_KEY}`;
   const res = await fetch(url);
   const json = await res.json();
   return json.values; // array de arrays
@@ -28,23 +29,36 @@ const parseSheet = (values) => {
   for (let i = 2; i < values.length; i++) {
     const row = values[i];
     if (row.length === 1 && row[0].trim() !== '') {
-      currentSection = { section: row[0], items: [], ofertas: 0 };
+      currentSection = { section: row[0], items: [], ofertas: 0, sinStock: 0 };
       result.push(currentSection);
     } else if (currentSection && row.length > 1) {
       const item = {};
       headers.forEach((header, idx) => {
         item[header] = row[idx] ?? '';
       });
-      // 🔍 Busca "OFERTA" en cualquier celda de la fila
-      const tieneOferta = row.some(celda =>
-        typeof celda === 'string' && celda.trim().toUpperCase() === 'OFERTA'
+
+      // 🔍 Busca "OFERTA" en la fila
+      const tieneOferta = row.some(
+        (celda) => typeof celda === 'string' && celda.trim().toUpperCase() === 'OFERTA'
       );
 
-      item['OFERTA'] = tieneOferta ? 1 : 0;
+      // 🔍 Busca "SIN STOCK" en la fila
+      const tieneSinStock = row.some(
+        (celda) => typeof celda === 'string' && celda.trim().toUpperCase() === 'SIN STOCK'
+      );
 
+      // Variables en el item
+      item['OFERTA'] = tieneOferta ? 1 : 0;
+      item['SIN_STOCK'] = tieneSinStock ? 1 : 0;
+
+      // Contadores en la sección
       if (tieneOferta) {
-        currentSection.ofertas += 1; // Incrementa el contador
+        currentSection.ofertas += 1;
       }
+      if (tieneSinStock) {
+        currentSection.sinStock += 1;
+      }
+
       currentSection.items.push(item);
     }
   }
@@ -58,11 +72,13 @@ const getBrandSummary = (allData) => {
   for (const marca in allData) {
     let totalMaquinas = 0;
     let totalOfertas = 0;
-    allData[marca].forEach(section => {
+    let totalSinStock = 0;
+    allData[marca].forEach((section) => {
       totalMaquinas += section.items.length;
       totalOfertas += section.ofertas || 0;
+      totalSinStock += section.sinStock || 0;
     });
-    resumen[marca] = { maquinas: totalMaquinas, ofertas: totalOfertas };
+    resumen[marca] = { maquinas: totalMaquinas, ofertas: totalOfertas, sinStock: totalSinStock };
   }
   return resumen;
 };
@@ -77,7 +93,6 @@ const loadAllData = async () => {
   }
 
   const resumenPorMarca = getBrandSummary(allData);
-
 
   await AsyncStorage.setItem('@data', JSON.stringify({ allData, resumenPorMarca }));
 
