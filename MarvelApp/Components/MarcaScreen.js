@@ -1,67 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, ScrollView, Animated } from 'react-native';
+import { View, Text, ScrollView, Animated, Pressable, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useRoute } from '@react-navigation/native';
+import ItemCard from './ItemCard';
 
 // Componente hijo para cada item
-const ItemCard = ({ item, textColor }) => {
-  const scaleAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    if (item['OFERTA'] === 1) {
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 3,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, []);
-
-  return (
-    <View style={{ padding: 0, marginBottom: 10, borderRadius: 4, position: 'relative' }}>
-      <Text style={{ fontWeight: 'bold', color: textColor, padding: 10, fontSize: 20 }}>
-        Máquina: {item['MAQUINAS']}
-      </Text>
-      <Text style={{ padding: 10, color: textColor, fontWeight: 'bold' }}>Código: {item['CODIGO']}</Text>
-      <Text style={{ padding: 10, color: textColor }}>
-        {item['PRECIO DOLAR AL GREMIO']
-          ? `Precio gremio USD: ${item['PRECIO DOLAR AL GREMIO']}`
-          : item['PRECIO EN PESOS AL GREMIO']
-          ? `Precio gremio ARS: ${item['PRECIO EN PESOS AL GREMIO']}`
-          : 'Precio gremio: N/A'}
-      </Text>
-      <Text style={{ padding: 10, color: textColor }}>Porcentaje de ganancia: {item['%']}</Text>
-      {item['PRECIO FINAL EN DOLARES AL PUBLICO'] && (
-        <Text style={{ padding: 10, color: textColor }}>
-          Precio público USD: {item['PRECIO FINAL EN DOLARES AL PUBLICO']}
-        </Text>
-      )}
-      {item['COTIZACION DEL DOLAR'] && (
-        <Text style={{ padding: 10, color: textColor }}>Cotización Dólar: {item['COTIZACION DEL DOLAR']}</Text>
-      )}
-      <Text style={{ fontWeight: 'bold', fontSize: 20, backgroundColor: '#1eff00a2', color: textColor, margin: 0 }}>
-        Precio en pesos: {item['PRECIO FINAL EN PESOS']}
-      </Text>
-
-      {item['OFERTA'] === 1 && (
-        <Animated.View
-          style={{
-            position: 'absolute',
-            top: 5,
-            right: 5,
-            backgroundColor: 'red',
-            paddingVertical: 4,
-            paddingHorizontal: 8,
-            borderRadius: 6,
-            transform: [{ scale: scaleAnim }],
-          }}
-        >
-          <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>OFERTA</Text>
-        </Animated.View>
-      )}
-    </View>
-  );
-};
 
 const MarcaScreen = () => {
   const brandColors = {
@@ -82,19 +26,57 @@ const MarcaScreen = () => {
 
   const [selectedSection, setSelectedSection] = useState('TODAS');
 
-  const filteredData =
-    selectedSection === 'TODAS'
-      ? marcaData
-      : marcaData.filter((sec) => sec.section === selectedSection);
+
 
   const allSections = ['TODAS', ...new Set(marcaData.map((sec) => sec.section))];
+  const [ofertasActivas, setOfertasActivas] = useState(false);
+  const colorAnim = useRef(new Animated.Value(0)).current;
+  // Animación de color según el estado
+  const filteredData = React.useMemo(() => {
+    // Paso 1: filtro por sección
+    let data =
+      selectedSection === "TODAS"
+        ? marcaData
+        : marcaData.filter((item) => item.section === selectedSection);
 
+    // Paso 2: si ofertas activas, filtro los items dentro de cada sección
+    if (ofertasActivas) {
+      data = data
+        .map((sec) => ({
+          ...sec,
+          items: sec.items.filter((item) => item.OFERTA === 1),
+          ofertas: sec.items.filter((item) => item.OFERTA === 1).length,
+        }))
+        .filter((sec) => sec.items.length > 0);
+    }
+
+    return data;
+  }, [marcaData, selectedSection, ofertasActivas]);
+
+
+  useEffect(() => {
+    Animated.timing(colorAnim, {
+      toValue: ofertasActivas ? 1 : 0,
+      duration: 400,
+      useNativeDriver: false, // 🔹 no se puede animar "color" con nativeDriver
+    }).start();
+  }, [ofertasActivas]);
+
+  // Interpolamos colores (apagado → encendido)
+  const backgroundColor = colorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["#a5a5a5b0", "#ffffffff"], // blanco apagado → verde encendido
+  });
+
+  const textColor = colorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["black", "black"], // texto negro apagado → blanco encendido
+  });
   return (
     <View
       style={{
         backgroundColor: brandColors[marcaName]?.background || brandColors.DEFAULT.background,
         flex: 1,
-        padding: 10,
       }}
     >
       <Text
@@ -107,16 +89,40 @@ const MarcaScreen = () => {
       >
         {marcaName}
       </Text>
+      <View style={{ padding: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
 
-      <Picker
-        selectedValue={selectedSection}
-        onValueChange={setSelectedSection}
-        style={{ marginBottom: 20, color: 'black', fontSize: 20 }}
-      >
-        {allSections.map((section) => (
-          <Picker.Item key={section} label={section} value={section} />
-        ))}
-      </Picker>
+        <Picker
+          selectedValue={selectedSection}
+          onValueChange={setSelectedSection}
+          style={{ marginBottom: 20, color: 'black', fontSize: 20, width: "35%" }}
+        >
+          {allSections.map((section) => (
+            <Picker.Item key={section} label={section} value={section} />
+          ))}
+        </Picker>
+
+
+        {/* 🔹 Botón animado Ofertas */}
+        <TouchableOpacity onPress={() => setOfertasActivas(!ofertasActivas)}>
+          <Animated.View
+            style={{
+              backgroundColor,
+              padding: 10,
+              borderRadius: 8,
+            }}
+          >
+            <Animated.Text
+              style={{
+                color: textColor,
+                fontSize: 20,
+                fontWeight: "bold",
+              }}
+            >
+              Ofertas: {filteredData.reduce((total, sec) => total + sec.ofertas, 0)}
+            </Animated.Text>
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
 
       <ScrollView>
         {filteredData.map((sec, i) => (
@@ -124,9 +130,7 @@ const MarcaScreen = () => {
             key={i}
             style={{
               marginBottom: 15,
-              borderWidth: 1,
-              borderColor: 'black',
-              borderRadius: 10,
+
             }}
           >
             <Text
@@ -140,11 +144,14 @@ const MarcaScreen = () => {
               {sec.section}
             </Text>
             {sec.items.map((item, j) => (
+
               <ItemCard
                 key={j}
                 item={item}
-                textColor={brandColors[marcaName]?.text || brandColors.DEFAULT.text}
-              />
+                textColor={"black"}
+                backgroundColor={brandColors[marcaName]?.background || brandColors.DEFAULT.background}
+              >{console.log(item)}{item.MAQUINAS}
+              </ItemCard>
             ))}
           </View>
         ))}
