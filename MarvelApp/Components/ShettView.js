@@ -4,8 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 
 import { loadAllData } from './utils'; // extraí esa lógica si querés
-import { ImageBackground } from 'react-native-web';
-
 const SheetView = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -13,7 +11,8 @@ const SheetView = () => {
 
   const loadDataFromStorage = async () => {
     setLoading(true);
-    const jsonStr = await AsyncStorage.getItem('@sheetData');
+    const jsonStr = await AsyncStorage.getItem('@data');
+
     if (jsonStr) {
       setData(JSON.parse(jsonStr));
       console.log(JSON.parse(jsonStr));
@@ -55,11 +54,7 @@ const SheetView = () => {
   }
 
   return (
-    <ImageBackground
-      source={require('../assets/logoMequitex.jpg')} // Imagen local en tu carpeta assets
-      style={{ flex: 1, width: '100%', height: '100%', resizeMode: 'cover', backgroundColor: '#black' }}
-      resizeMode="cover" // 'cover', 'contain', 'stretch' según quieras
-    >
+    <View style={{ flex: 1, padding: 10 }}>
       <Text style={{ fontSize: 24, fontWeight: 'bold', marginTop: 10, color: '#black ', textAlign: 'center' }}>Precio de Maquinas</Text>
       <ScrollView style={{ marginTop: 10 }}>
         {Object.entries(data.resumenPorMarca).map(([marcaName, resumen]) => (
@@ -112,7 +107,7 @@ const SheetView = () => {
           Actualizar datos
         </Text>
       </TouchableOpacity>
-    </ImageBackground>
+    </View>
   );
 };
 

@@ -79,7 +79,7 @@ const loadAllData = async () => {
   const resumenPorMarca = getBrandSummary(allData);
 
 
-  await AsyncStorage.setItem('@sheetData', JSON.stringify({ allData, resumenPorMarca }));
+  await AsyncStorage.setItem('@data', JSON.stringify({ allData, resumenPorMarca }));
 
   return { allData, resumenPorMarca };
 };
