@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Animated, TouchableOpacity } from 'react-native';
+import { View, Text, Animated, TouchableOpacity, Linking } from 'react-native';
+import { obtenerEspecificaciones } from './aiClient';
 
 // Componente hijo para cada item
 const ItemCard = ({ item, textColor , backgroundColor}) => {
@@ -16,11 +17,27 @@ const ItemCard = ({ item, textColor , backgroundColor}) => {
         }
     }, []);
 
+    // 🔍 función para abrir búsqueda en Google
+    const buscarEnGoogle = () => {
+        if (item['CODIGO']) {
+            const query = encodeURIComponent(item['CODIGO']);
+            const url = `https://www.google.com/search?q=${query}`;
+            Linking.openURL(url);
+        }
+    };
+  const [info, setInfo] = useState("");
+
+// 🔍 función para buscar especificaciones usando cache y AI
+const buscar = async () => {
+  const data = await obtenerEspecificaciones(item['MAQUINAS'], item['CODIGO']);
+  setInfo(data);
+};
+
     return (
         <View
             style={{
                 padding: 0,
-                marginBottom: 10,
+                marginBottom: 20,
                 borderRadius: 4,
                 position: 'relative',
                 backgroundColor: '#fff',
@@ -41,7 +58,27 @@ const ItemCard = ({ item, textColor , backgroundColor}) => {
             </Text>
             <Text style={{ padding: 10, color: textColor, fontWeight: 'bold' }}>
                 Código: {item['CODIGO']}
+                <TouchableOpacity
+                onPress={buscar}
+                style={{
+                    padding: 0,
+                    margin: 0,
+                }}
+            >
+                <Text style={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>
+                    🔎
+                </Text>
+            </TouchableOpacity>
             </Text>
+
+            {
+                info && (
+                    <Text style={{ padding: 10, color: textColor, fontWeight: 'bold' }}>
+                        {info}
+                    </Text>
+                )
+            }
+
             <Text
                 style={{
                     fontWeight: 'bold',
@@ -55,6 +92,7 @@ const ItemCard = ({ item, textColor , backgroundColor}) => {
             >
                 Precio en pesos: {item['PRECIO FINAL EN PESOS']}
             </Text>
+            
             {/* Botón para mostrar/ocultar precios */}
             <TouchableOpacity
                 onPress={() => setShowPrices(!showPrices)}
@@ -96,8 +134,6 @@ const ItemCard = ({ item, textColor , backgroundColor}) => {
                             Cotización Dólar: {item['COTIZACION DEL DOLAR']}
                         </Text>
                     )}
-
-
                 </View>
             )}
 
@@ -119,25 +155,25 @@ const ItemCard = ({ item, textColor , backgroundColor}) => {
                     </Text>
                 </Animated.View>
             )}
-            {
-                item['SIN_STOCK'] === 1 && (
-                    <Animated.View
-                        style={{
-                            position: 'absolute',
-                            top: 5,
-                            right: 5,
-                            backgroundColor: 'black',
-                            paddingVertical: 4,
-                            paddingHorizontal: 8,
-                            borderRadius: 6,
-                        }}
-                    >
-                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>
-                            SIN STOCK
-                        </Text>
-                    </Animated.View>
-                )
-            }
+
+            {/* Etiqueta SIN STOCK */}
+            {item['SIN_STOCK'] === 1 && (
+                <Animated.View
+                    style={{
+                        position: 'absolute',
+                        top: 5,
+                        right: 5,
+                        backgroundColor: 'black',
+                        paddingVertical: 4,
+                        paddingHorizontal: 8,
+                        borderRadius: 6,
+                    }}
+                >
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>
+                        SIN STOCK
+                    </Text>
+                </Animated.View>
+            )}
         </View>
     );
 };

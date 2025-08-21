@@ -15,7 +15,6 @@ const SheetView = () => {
 
     if (jsonStr) {
       setData(JSON.parse(jsonStr));
-      console.log(JSON.parse(jsonStr));
       
     } else {
       const freshData = await loadAllData();

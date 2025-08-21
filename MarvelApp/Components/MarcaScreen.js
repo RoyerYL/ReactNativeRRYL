@@ -150,7 +150,7 @@ const MarcaScreen = () => {
                 item={item}
                 textColor={"black"}
                 backgroundColor={brandColors[marcaName]?.background || brandColors.DEFAULT.background}
-              >{console.log(item)}{item.MAQUINAS}
+              >{item.MAQUINAS}
               </ItemCard>
             ))}
           </View>
