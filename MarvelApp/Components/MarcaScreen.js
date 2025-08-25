@@ -130,7 +130,7 @@ const MarcaScreen = () => {
             key={i}
             style={{
               marginBottom: 15,
-
+              backgroundColor:"white"
             }}
           >
             <Text
@@ -138,7 +138,7 @@ const MarcaScreen = () => {
                 fontSize: 30,
                 fontWeight: 'bold',
                 textAlign: 'center',
-                color: brandColors[marcaName]?.text || brandColors.DEFAULT.text,
+                color: brandColors[marcaName]?.background || brandColors.DEFAULT.background,
               }}
             >
               {sec.section}

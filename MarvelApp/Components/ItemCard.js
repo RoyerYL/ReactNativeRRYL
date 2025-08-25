@@ -3,7 +3,7 @@ import { View, Text, Animated, TouchableOpacity, Linking } from 'react-native';
 import { obtenerEspecificaciones } from './aiClient';
 
 // Componente hijo para cada item
-const ItemCard = ({ item, textColor , backgroundColor}) => {
+const ItemCard = ({ item, textColor, backgroundColor }) => {
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const [showPrices, setShowPrices] = useState(false); // 👈 control del desplegable
 
@@ -25,13 +25,13 @@ const ItemCard = ({ item, textColor , backgroundColor}) => {
             Linking.openURL(url);
         }
     };
-  const [info, setInfo] = useState("");
+    const [info, setInfo] = useState("");
 
-// 🔍 función para buscar especificaciones usando cache y AI
-const buscar = async () => {
-  const data = await obtenerEspecificaciones(item['MAQUINAS'], item['CODIGO']);
-  setInfo(data);
-};
+    // 🔍 función para buscar especificaciones usando cache y AI
+    const buscar = async () => {
+        const data = await obtenerEspecificaciones(item['MAQUINAS'], item['CODIGO']);
+        setInfo(data);
+    };
 
     return (
         <View
@@ -59,16 +59,16 @@ const buscar = async () => {
             <Text style={{ padding: 10, color: textColor, fontWeight: 'bold' }}>
                 Código: {item['CODIGO']}
                 <TouchableOpacity
-                onPress={buscar}
-                style={{
-                    padding: 0,
-                    margin: 0,
-                }}
-            >
-                <Text style={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>
-                    🔎
-                </Text>
-            </TouchableOpacity>
+                    onPress={buscarEnGoogle}
+                    style={{
+                        padding: 0,
+                        margin: 0,
+                    }}
+                >
+                    <Text style={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>
+                        🔎
+                    </Text>
+                </TouchableOpacity>
             </Text>
 
             {
@@ -91,22 +91,23 @@ const buscar = async () => {
                 }}
             >
                 Precio en pesos: {item['PRECIO FINAL EN PESOS']}
+                <TouchableOpacity
+                    onPress={() => setShowPrices(!showPrices)}
+                    style={{
+                        backgroundColor: "white",
+                        padding: 8,
+                        margin: 8,
+                        borderRadius: 6,
+                    }}
+                >
+                    <Text style={{ color: 'black', fontSize: 10, textAlign: 'center' }}>
+                        {showPrices ? 'Ocultar detalles ▲' : 'Ver detalles ▼'}
+                    </Text>
+                </TouchableOpacity>
             </Text>
-            
+
             {/* Botón para mostrar/ocultar precios */}
-            <TouchableOpacity
-                onPress={() => setShowPrices(!showPrices)}
-                style={{
-                    backgroundColor: backgroundColor,
-                    padding: 8,
-                    margin: 8,
-                    borderRadius: 6,
-                }}
-            >
-                <Text style={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>
-                    {showPrices ? 'Ocultar precios ▲' : 'Ver precios ▼'}
-                </Text>
-            </TouchableOpacity>
+
 
             {/* Lista de precios desplegable */}
             {showPrices && (
