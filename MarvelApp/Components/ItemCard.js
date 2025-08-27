@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Animated, TouchableOpacity, Linking, Share } from 'react-native';
-import { obtenerEspecificaciones } from './aiClient';
 
 // Componente hijo para cada item
 const ItemCard = ({ item, textColor, backgroundColor }) => {
@@ -28,10 +27,7 @@ const ItemCard = ({ item, textColor, backgroundColor }) => {
     const [info, setInfo] = useState("");
 
     // 🔍 función para buscar especificaciones usando cache y AI
-    const buscar = async () => {
-        const data = await obtenerEspecificaciones(item['MAQUINAS'], item['CODIGO']);
-        setInfo(data);
-    };
+
     // 📤 función para compartir el item
     // utils/priceUtils.js
 

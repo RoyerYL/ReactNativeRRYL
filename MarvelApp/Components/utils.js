@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-
+const SHEET_ID = '1zAdqkuP0MWF7MKpHqB4IoWidSTuQz0_ORX8-TVMcDOk';
+const API_KEY = 'AIzaSyAStpB3GNAAGlmAM7nBVvFp5wcsKlyEtCE';
 
 // 📌 Obtener nombres de todas las hojas del spreadsheet
 const fetchSheetNames = async () => {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${process.env.SHEET_ID}?key=${process.env.API_KEY}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}?key=${API_KEY}`;
   const res = await fetch(url);
   const json = await res.json();
   return json.sheets.map(sheet => sheet.properties.title);
@@ -12,7 +13,7 @@ const fetchSheetNames = async () => {
 
 // 📌 Obtener datos de una hoja específica
 const fetchSheetData = async (sheetName) => {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${process.env.SHEET_ID}/values/${encodeURIComponent(sheetName)}!A1:I200?key=${process.env.API_KEY}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}!A1:I200?key=${API_KEY}`;
   const res = await fetch(url);
   const json = await res.json();
   return json.values; // array de arrays
