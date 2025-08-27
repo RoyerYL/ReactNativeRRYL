@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,34 +12,60 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-
 import { loadAllData } from './utils';
 
-// 🔹 Normalizar texto (sin tildes, lowercase)
-const normalize = (str) =>
-  str
-    ? str
+// normalizar
+const normalize = (s) =>
+  s
+    ? s
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
     : '';
 
 const SheetView = () => {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(null);        // { allData, resumenPorMarca, allItems }
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [filtered, setFiltered] = useState([]);
   const navigation = useNavigation();
 
+  // fallback por si hay @data viejo sin allItems
+  const flattenFromAllData = (allData) => {
+    if (!allData) return [];
+    const out = [];
+    for (const marca in allData) {
+      allData[marca]?.forEach((section) => {
+        section.items?.forEach((item) => {
+          out.push({ ...item, marca, section: section.section });
+        });
+      });
+    }
+    return out;
+  };
+
+  const items = useMemo(() => {
+    if (!data) return [];
+    if (Array.isArray(data.allItems) && data.allItems.length) return data.allItems;
+    // fallback si falta allItems en @data
+    return flattenFromAllData(data.allData);
+  }, [data]);
+
+  // cargar desde @data o desde Sheets
   const loadDataFromStorage = async () => {
     setLoading(true);
     const jsonStr = await AsyncStorage.getItem('@data');
-
     if (jsonStr) {
-      setData(JSON.parse(jsonStr));
+      try {
+        const parsed = JSON.parse(jsonStr);
+        setData(parsed);
+      } catch {
+        const fresh = await loadAllData();
+        setData(fresh);
+      }
     } else {
-      const freshData = await loadAllData();
-      setData(freshData);
+      const fresh = await loadAllData();
+      setData(fresh);
     }
     setLoading(false);
   };
@@ -48,31 +74,27 @@ const SheetView = () => {
     loadDataFromStorage();
   }, []);
 
+  // actualizar (y guardar misma forma en @data)
   const refreshData = async () => {
     setLoading(true);
-    const freshData = await loadAllData();
-    setData(freshData);
+    const fresh = await loadAllData();               // ya guarda en @data
+    setData(fresh);                                  // y también actualiza el estado
     setLoading(false);
   };
 
-  const handleSearch = (text) => {
-    setQuery(text);
-    if (!text.trim()) {
+  // filtrar cuando cambie query o items
+  useEffect(() => {
+    if (!query.trim()) {
       setFiltered([]);
       return;
     }
-
-    const terms = normalize(text).split(' ').filter(Boolean);
-
-    const results = data?.allItems?.filter((item) => {
-      const haystack = `${normalize(item.CODIGO)} ${normalize(
-        item.MAQUINAS
-      )} ${normalize(item.marca)}`;
+    const terms = normalize(query).split(' ').filter(Boolean);
+    const res = items.filter((item) => {
+      const haystack = `${normalize(item.CODIGO)} ${normalize(item.MAQUINAS)} ${normalize(item.marca)}`;
       return terms.every((t) => haystack.includes(t));
     });
-
-    setFiltered(results?.slice(0, 15) || []);
-  };
+    setFiltered(res.slice(0, 15));
+  }, [query, items]);
 
   if (loading) {
     return (
@@ -93,46 +115,39 @@ const SheetView = () => {
 
   return (
     <View style={{ flex: 1, padding: 10 }}>
-      {/* 🔹 Search bar */}
+      {/* Search */}
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar por nombre o código..."
           value={query}
-          onChangeText={handleSearch}
+          onChangeText={setQuery}
         />
         {query.length > 0 && (
-          <TouchableOpacity onPress={() => { setQuery(''); setFiltered([]); }}>
+          <TouchableOpacity onPress={() => setQuery('')}>
             <Text style={styles.clearButton}>X</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* 🔹 Dropdown de resultados */}
+      {/* Resultados */}
       {filtered.length > 0 && (
         <View style={styles.dropdown}>
           <FlatList
+            keyboardShouldPersistTaps="handled"
             data={filtered}
-            keyExtractor={(item, idx) => item.CODIGO + idx}
+            keyExtractor={(item, idx) => `${item.marca}-${item.CODIGO}-${idx}`}
             renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate('MarcaDetalle', { item })
-                }
-              >
+              <TouchableOpacity onPress={() => navigation.navigate('MarcaDetalle', { item })}>
                 <View style={styles.dropdownItem}>
-                  {/* Etiqueta marca */}
                   <View style={styles.tag}>
                     <Text style={styles.tagText}>{item.marca}</Text>
                   </View>
-                  {/* Info */}
                   <Text style={styles.itemText}>
                     {item.CODIGO} - {item.MAQUINAS}
                   </Text>
                   <Text style={styles.price}>
-                    {item['PRECIO FINAL EN PESOS']
-                      ? `$ ${item['PRECIO FINAL EN PESOS']}`
-                      : 'No hay precio'}
+                    {item['PRECIO FINAL EN PESOS'] ? `$ ${item['PRECIO FINAL EN PESOS']}` : 'No hay precio'}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -141,7 +156,7 @@ const SheetView = () => {
         </View>
       )}
 
-      {/* 🔹 Resumen por marca */}
+      {/* Resumen marcas */}
       <Text style={styles.title}>Precio de Maquinas</Text>
       <ScrollView style={{ marginTop: 10 }}>
         {Object.entries(data.resumenPorMarca).map(([marcaName, resumen]) => (
@@ -158,7 +173,6 @@ const SheetView = () => {
             <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{marcaName}</Text>
             <Text>Máquinas: {resumen.maquinas}</Text>
             <Text>Ofertas: {resumen.ofertas}</Text>
-
             {resumen.ofertas > 0 && (
               <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 5 }}>
                 🔥 ¡Esta marca tiene ofertas disponibles!
@@ -168,7 +182,6 @@ const SheetView = () => {
         ))}
       </ScrollView>
 
-      {/* 🔹 Botón actualizar */}
       <TouchableOpacity onPress={refreshData} style={styles.refreshButton}>
         <Text style={styles.refreshText}>Actualizar datos</Text>
       </TouchableOpacity>
@@ -178,7 +191,6 @@ const SheetView = () => {
 
 export default SheetView;
 
-// 🎨 Estilos
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   searchContainer: {
@@ -193,12 +205,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   searchInput: { flex: 1, height: 40, fontSize: 16 },
-  clearButton: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ff0000',
-    marginLeft: 8,
-  },
+  clearButton: { fontSize: 18, fontWeight: 'bold', color: '#ff0000', marginLeft: 8 },
   dropdown: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -207,49 +214,13 @@ const styles = StyleSheet.create({
     maxHeight: 250,
     marginBottom: 10,
   },
-  dropdownItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
+  dropdownItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
   itemText: { marginTop: 16, fontSize: 14 },
-  price: {
-    marginTop: 4,
-    fontWeight: 'bold',
-    color: '#064d06', // verde oscuro
-  },
-  tag: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#333',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
+  price: { marginTop: 4, fontWeight: 'bold', color: '#000000ff' },
+  tag: { position: 'absolute', top: 8, right: 8, backgroundColor: '#333', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   tagText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 10,
-    color: '#000',
-    textAlign: 'center',
-  },
-  card: {
-    padding: 16,
-    backgroundColor: '#eeeeeeb9',
-    marginBottom: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#000',
-  },
-  refreshButton: {
-    backgroundColor: '#ff8000',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginVertical: 10,
-  },
+  title: { fontSize: 24, fontWeight: 'bold', marginTop: 10, color: '#000', textAlign: 'center' },
+  card: { padding: 16, backgroundColor: '#eeeeeeb9', marginBottom: 10, borderRadius: 8, borderWidth: 1, borderColor: '#000' },
+  refreshButton: { backgroundColor: '#ff8000', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center', marginVertical: 10 },
   refreshText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

@@ -94,7 +94,7 @@ const MarcaScreen = () => {
         <Picker
           selectedValue={selectedSection}
           onValueChange={setSelectedSection}
-          style={{ marginBottom: 20, color: 'black', fontSize: 20, width: "35%" }}
+          style={{ marginBottom: 20,backgroundColor: "white", color: 'black', fontSize: 20, width: "35%" }}
         >
           {allSections.map((section) => (
             <Picker.Item key={section} label={section} value={section} />
