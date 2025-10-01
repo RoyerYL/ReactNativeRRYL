@@ -1,292 +1,254 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Animated, TouchableOpacity, Linking, Share } from 'react-native';
+import { View, Text, Animated, TouchableOpacity, Linking, Image } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import Share from 'react-native-share';
+// 🔗 Convierte link de Drive a link directo
+function getDirectDriveImageUrl(driveUrl) {
+  if (!driveUrl) return null;
+  const match = driveUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (match && match[1]) {
+    return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+  }
+  return null;
+}
 
-// Componente hijo para cada item
-const ItemCard = ({ item, textColor, backgroundColor }) => {
-    const scaleAnim = useRef(new Animated.Value(0)).current;
-    const [showPrices, setShowPrices] = useState(false); // 👈 control del desplegable
+// 📥 Descarga y cachea imagen localmente con fallback
+async function getCachedImage(driveUrl) {
+  if (!driveUrl) return null;
 
-    useEffect(() => {
-        if (item['OFERTA'] === 1) {
-            Animated.spring(scaleAnim, {
-                toValue: 1,
-                friction: 3,
-                useNativeDriver: true,
-            }).start();
-        }
-    }, []);
+  // Extraemos ID de Drive para usar como nombre de archivo
+  const fileId = driveUrl.match(/id=([a-zA-Z0-9_-]+)/)?.[1] || driveUrl;
+  const fileUri = `${FileSystem.cacheDirectory}${fileId}.jpg`;
 
-    // 🔍 función para abrir búsqueda en Google
-    const buscarEnGoogle = () => {
-        if (item['CODIGO']) {
-            const query = encodeURIComponent(item['CODIGO']);
-            const url = `https://www.google.com/search?q=${query}`;
-            Linking.openURL(url);
-        }
-    };
-    const [info, setInfo] = useState("");
+  // Si ya existe el archivo local, lo usamos
+  const fileInfo = await FileSystem.getInfoAsync(fileUri);
 
-    // 🔍 función para buscar especificaciones usando cache y AI
+  if (fileInfo.exists) return fileUri;
 
-    // 📤 función para compartir el item
-    // utils/priceUtils.js
+  // Intentamos descargar la imagen
+  try {
+    const { uri } = await FileSystem.downloadAsync(driveUrl, fileUri);
+    return uri;
+  } catch (err) {
+    console.warn('❌ Error al descargar imagen:', err);
+    // fallback: usamos la URL original de Drive si falla
+    return driveUrl;
+  }
+}
 
-/**
- * Intenta convertir strings con distintos formatos de moneda a Number.
- * Soporta:
- *  - "$1,041,200.00"
- *  - "1.041.200,00"
- *  - "1041200"
- *  - "1,041,200"
- */
- function parseCurrencyStringToNumber(str) {
-  if (str == null) return NaN;
-  const s = String(str).trim();
+const ItemCard = ({ item, textColor,marca }) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const [showPrices, setShowPrices] = useState(false);
+  const [localImageUri, setLocalImageUri] = useState(null);
 
-  // quitar todo excepto dígitos, punto y coma y signo negativo
-  const cleaned = s.replace(/[^\d.,-]/g, '');
+  const imageUrl = getDirectDriveImageUrl(item['FOTOS']);
 
-  if (!cleaned) return NaN;
-
-  const lastDot = cleaned.lastIndexOf('.');
-  const lastComma = cleaned.lastIndexOf(',');
-
-  let normalized = cleaned;
-
-  if (lastDot !== -1 && lastComma !== -1) {
-    // hay ambos símbolos -> el que aparezca más a la derecha es el separador decimal
-    if (lastDot > lastComma) {
-      // punto decimal, eliminar comas (miles)
-      normalized = cleaned.replace(/,/g, '');
-    } else {
-      // coma decimal, eliminar puntos (miles) y reemplazar coma por punto
-      normalized = cleaned.replace(/\./g, '').replace(/,/g, '.');
+  useEffect(() => {
+    if (item['OFERTA'] === 1) {
+      Animated.spring(scaleAnim, { toValue: 1, friction: 3, useNativeDriver: true }).start();
     }
-  } else if (lastComma !== -1) {
-    // solo coma presente -> decidir si es decimal (2 dígitos al final) o miles
-    const partAfter = cleaned.slice(lastComma + 1);
-    if (partAfter.length === 2) {
-      // coma como decimal
-      normalized = cleaned.replace(/\./g, '').replace(/,/g, '.');
-    } else {
-      // coma como separador de miles -> eliminar comas
-      normalized = cleaned.replace(/,/g, '');
+  }, []);
+
+  // ⬇️ Descargamos y cacheamos la imagen
+  useEffect(() => {
+    let isMounted = true;
+    if (imageUrl) {
+      getCachedImage(imageUrl).then((uri) => {
+        if (isMounted) setLocalImageUri(uri);
+      });
     }
-  } else if (lastDot !== -1) {
-    // solo punto -> decidir si decimal (2 dígitos) o miles
-    const partAfter = cleaned.slice(lastDot + 1);
-    if (partAfter.length === 2) {
-      // punto decimal
-      normalized = cleaned;
-    } else {
-      // punto como separador de miles -> eliminar puntos
-      normalized = cleaned.replace(/\./g, '');
+    return () => { isMounted = false; };
+  }, [imageUrl]);
+
+  const buscarEnGoogle = () => {
+    if (item['CODIGO']) {
+      const query = encodeURIComponent(item['MAQUINAS'] + ' ' + item['CODIGO']);
+      Linking.openURL(`https://www.google.com/search?q=${query}`);
     }
+  };
+
+  /**
+   * Intenta convertir strings con distintos formatos de moneda a Number.
+   * Soporta:
+   *  - "$1,041,200.00"
+   *  - "1.041.200,00"
+   *  - "1041200"
+   *  - "1,041,200"
+   */
+  function parseCurrencyStringToNumber(str) {
+    if (str == null) return NaN;
+    const s = String(str).trim();
+
+    // quitar todo excepto dígitos, punto y coma y signo negativo
+    const cleaned = s.replace(/[^\d.,-]/g, '');
+
+    if (!cleaned) return NaN;
+
+    const lastDot = cleaned.lastIndexOf('.');
+    const lastComma = cleaned.lastIndexOf(',');
+
+    let normalized = cleaned;
+
+    if (lastDot !== -1 && lastComma !== -1) {
+      // hay ambos símbolos -> el que aparezca más a la derecha es el separador decimal
+      if (lastDot > lastComma) {
+        // punto decimal, eliminar comas (miles)
+        normalized = cleaned.replace(/,/g, '');
+      } else {
+        // coma decimal, eliminar puntos (miles) y reemplazar coma por punto
+        normalized = cleaned.replace(/\./g, '').replace(/,/g, '.');
+      }
+    } else if (lastComma !== -1) {
+      // solo coma presente -> decidir si es decimal (2 dígitos al final) o miles
+      const partAfter = cleaned.slice(lastComma + 1);
+      if (partAfter.length === 2) {
+        // coma como decimal
+        normalized = cleaned.replace(/\./g, '').replace(/,/g, '.');
+      } else {
+        // coma como separador de miles -> eliminar comas
+        normalized = cleaned.replace(/,/g, '');
+      }
+    } else if (lastDot !== -1) {
+      // solo punto -> decidir si decimal (2 dígitos) o miles
+      const partAfter = cleaned.slice(lastDot + 1);
+      if (partAfter.length === 2) {
+        // punto decimal
+        normalized = cleaned;
+      } else {
+        // punto como separador de miles -> eliminar puntos
+        normalized = cleaned.replace(/\./g, '');
+      }
+    }
+
+    const num = parseFloat(normalized);
+    return Number.isFinite(num) ? num : NaN;
   }
 
-  const num = parseFloat(normalized);
-  return Number.isFinite(num) ? num : NaN;
-}
+  /**
+   * Redondea hacia arriba al múltiplo más cercano
+   */
+  function roundUpToMultiple(value, multiple = 50000) {
+    if (!Number.isFinite(value)) return NaN;
+    return Math.ceil(value / multiple) * multiple;
+  }
 
-/**
- * Redondea hacia arriba al múltiplo más cercano
- */
- function roundUpToMultiple(value, multiple = 50000) {
-  if (!Number.isFinite(value)) return NaN;
-  return Math.ceil(value / multiple) * multiple;
-}
+  /**
+   * Formatea número como "$1,050,000.00" (coma miles, punto decimal, 2 decimales)
+   */
+  function formatAsDollarUS(value) {
+    if (!Number.isFinite(value)) return null;
+    // toFixed + regex para separar miles garantiza consistencia en todos los runtimes JS
+    return '$' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
 
-/**
- * Formatea número como "$1,050,000.00" (coma miles, punto decimal, 2 decimales)
- */
- function formatAsDollarUS(value) {
-  if (!Number.isFinite(value)) return null;
-  // toFixed + regex para separar miles garantiza consistencia en todos los runtimes JS
-  return '$' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
+  /**
+   * Función todo-en-uno
+   */
+  function redondearYFormatear(precioStr, multiple = 50000) {
+    const numero = parseCurrencyStringToNumber(precioStr);
+    if (!Number.isFinite(numero)) return null; // o devuelve precioStr si prefieres
+    const redondeado = roundUpToMultiple(numero, multiple);
+    return formatAsDollarUS(redondeado);
+  }
+  const openLink = async () => {
+    const link = item['VIDEOS'];
+    try {
+      const supported = await Linking.canOpenURL(link);
+      if (supported) {
+        await Linking.openURL(link);
+      } else {
+        console.log("No se puede abrir este enlace: " + link);
+      }
+    } catch (error) {
+      console.error("Error al abrir el enlace: ", error);
+    }
+  };
+  const compartir = async () => {
+    if (!localImageUri) return;
 
-/**
- * Función todo-en-uno
- */
- function redondearYFormatear(precioStr, multiple = 50000) {
-  const numero = parseCurrencyStringToNumber(precioStr);
-  if (!Number.isFinite(numero)) return null; // o devuelve precioStr si prefieres
-  const redondeado = roundUpToMultiple(numero, multiple);
-  return formatAsDollarUS(redondeado);
-}
-
-    const compartir = async () => {
-        try {
-            const mensaje =
-                `📦 Máquina: ${item['MAQUINAS'] || 'N/A'}
-🔖 Código: ${item['CODIGO'] || 'N/A'}
-🏷 Marca: ${item['MARCA'] || 'N/A'}
-💵 Precio final: ${item['PRECIO FINAL EN PESOS'] ? `${redondearYFormatear(item['PRECIO FINAL EN PESOS'])}` : 'No disponible'}`;
-
-            await Share.share({
-                message: mensaje,
-            });
-        } catch (error) {
-            console.error("Error al compartir:", error);
-        }
+    const shareOptions = {
+      title: 'Compartir en WhatsApp',
+      message: `Marca: ${marcaName} \n📦 Máquina: ${item['MAQUINAS'] || 'N/A'}\n🔖 Código: ${item['CODIGO'] || 'N/A'} \n💵 Precio final: ${item['PRECIO FINAL EN PESOS'] ? redondearYFormatear(item['PRECIO FINAL EN PESOS']) : 'No disponible'}`,
+      url: localImageUri,
+      social: Share.Social.WHATSAPP,
     };
-    return (
-        <View
-            style={{
-                padding: 0,
-                marginBottom: 20,
-                borderRadius: 4,
-                position: 'relative',
-                backgroundColor: '#fff',
-                borderWidth: 1,
-                borderColor: 'black',
-                borderRadius: 10,
-            }}
-        >
-            <Text
-                style={{
-                    fontWeight: 'bold',
-                    color: textColor,
-                    padding: 10,
-                    fontSize: 20,
-                }}
-            >
-                Máquina: {item['MAQUINAS']}
-            </Text>
-            <Text style={{ padding: 10, color: textColor, fontWeight: 'bold' }}>
-                Código: {item['CODIGO']}
-                <TouchableOpacity
-                    onPress={buscarEnGoogle}
-                    style={{
-                        padding: 0,
-                        margin: 0,
-                    }}
-                >
-                    <Text style={{ color: 'white', fontWeight: 'bold', textAlign: 'center' }}>
-                        🔎
-                    </Text>
-                </TouchableOpacity>
-            </Text>
 
-            {
-                info && (
-                    <Text style={{ padding: 10, color: textColor, fontWeight: 'bold' }}>
-                        {info}
-                    </Text>
-                )
-            }
+    try {
+      await Share.open(shareOptions);
+    } catch (err) {
+      console.log('Error al compartir:', err);
+    }
+  };
+  return (
+    <View style={{ marginBottom: 20, borderRadius: 10, borderWidth: 1, borderColor: 'black', backgroundColor: '#fff' }}>
+      {/* ✅ Cargamos imagen cacheada o URL original */}
+      {localImageUri && (
+        <Image
+          source={{ uri: localImageUri }}
+          style={{ width: '100%', height: 200, borderTopLeftRadius: 10, borderTopRightRadius: 10, resizeMode: 'cover' }}
+        />
+      )}
 
-            <Text
-                style={{
-                    fontWeight: 'bold',
-                    fontSize: 20,
-                    backgroundColor: '#1eff00a2',
-                    color: textColor,
-                    marginTop: 6,
-                    padding: 5,
-                    borderRadius: 6,
-                }}
-            >
-                Precio en pesos: {item['PRECIO FINAL EN PESOS']}
-                <TouchableOpacity
-                    onPress={() => setShowPrices(!showPrices)}
-                    style={{
-                        backgroundColor: "white",
-                        padding: 8,
-                        margin: 8,
-                        borderRadius: 6,
-                    }}
-                >
-                    <Text style={{ color: 'black', fontSize: 10, textAlign: 'center' }}>
-                        {showPrices ? 'Ocultar detalles ▲' : 'Ver detalles ▼'}
-                    </Text>
-                </TouchableOpacity>
-                {/* Botón compartir */}
-                <TouchableOpacity
-                    onPress={compartir}
-                    style={{
-                        backgroundColor: "#007bff",
-                        padding: 10,
-                        margin: 10,
-                        borderRadius: 6,
-                        alignItems: "center"
-                    }}
-                >
-                    <Text style={{ color: "white", fontWeight: "bold" }}>📤 Compartir</Text>
-                </TouchableOpacity>
-            </Text>
+      <Text style={{ fontWeight: 'bold', color: textColor, padding: 10, fontSize: 20 }}>
+        Máquina: {item['MAQUINAS']}
+      </Text>
 
-            {/* Botón para mostrar/ocultar precios */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 }}>
+        <Text style={{ color: textColor, fontWeight: 'bold' }}>
+          Código: {item['CODIGO']}
+        </Text>
+        <TouchableOpacity onPress={buscarEnGoogle} style={{ marginLeft: 8 }}>
+          <Text style={{ fontSize: 16 }}>🔎</Text>
+        </TouchableOpacity>
+      </View>
 
+      <Text style={{ fontWeight: 'bold', fontSize: 20, backgroundColor: '#1eff00a2', color: textColor, marginTop: 6, padding: 5, borderRadius: 6 }}>
+        Precio en pesos: {item['PRECIO FINAL EN PESOS']}
+      </Text>
 
-            {/* Lista de precios desplegable */}
-            {showPrices && (
-                <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
-                    <Text style={{ padding: 5, color: textColor }}>
-                        {item['PRECIO DOLAR AL GREMIO']
-                            ? `Precio gremio USD: ${item['PRECIO DOLAR AL GREMIO']}`
-                            : item['PRECIO EN PESOS AL GREMIO']
-                                ? `Precio gremio ARS: ${item['PRECIO EN PESOS AL GREMIO']}`
-                                : 'Precio gremio: N/A'}
-                    </Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10 }}>
+        <TouchableOpacity onPress={() => setShowPrices(!showPrices)}>
+          <Text style={{ color: 'black' }}>
+            {showPrices ? 'Ocultar detalles ▲' : 'Ver detalles ▼'}
+          </Text>
+        </TouchableOpacity>
 
-                    <Text style={{ padding: 5, color: textColor }}>
-                        Porcentaje de ganancia: {item['%']}
-                    </Text>
+        <TouchableOpacity onPress={compartir} style={{ backgroundColor: "#007bff", padding: 8, borderRadius: 6 }}>
+          <Text style={{ color: "white", fontWeight: "bold" }}>📤 Compartir</Text>
+        </TouchableOpacity>
+      </View>
 
-                    {item['PRECIO FINAL EN DOLARES AL PUBLICO'] && (
-                        <Text style={{ padding: 5, color: textColor }}>
-                            Precio público USD: {item['PRECIO FINAL EN DOLARES AL PUBLICO']}
-                        </Text>
-                    )}
+      {showPrices && (
+        <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
+          <Text>{item['PRECIO DOLAR AL GREMIO']
+            ? `Precio gremio USD: ${item['PRECIO DOLAR AL GREMIO']}`
+            : item['PRECIO EN PESOS AL GREMIO']
+              ? `Precio gremio ARS: ${item['PRECIO EN PESOS AL GREMIO']}`
+              : 'Precio gremio: N/A'}</Text>
 
-                    {item['COTIZACION DEL DOLAR'] && (
-                        <Text style={{ padding: 5, color: textColor }}>
-                            Cotización Dólar: {item['COTIZACION DEL DOLAR']}
-                        </Text>
-                    )}
-                </View>
-            )}
+          {item['PRECIO FINAL EN DOLARES AL PUBLICO'] && <Text>Precio público USD: {item['PRECIO FINAL EN DOLARES AL PUBLICO']}</Text>}
+          {item['COTIZACION DEL DOLAR'] && <Text>Cotización Dólar: {item['COTIZACION DEL DOLAR']}</Text>}
 
-            {/* Etiqueta OFERTA */}
-            {item['OFERTA'] === 1 && (
-                <Animated.View
-                    style={{
-                        position: 'absolute',
-                        top: 5,
-                        right: 5,
-                        backgroundColor: 'red',
-                        paddingVertical: 4,
-                        paddingHorizontal: 8,
-                        borderRadius: 6,
-                    }}
-                >
-                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>
-                        OFERTA
-                    </Text>
-                </Animated.View>
-            )}
-
-            {/* Etiqueta SIN STOCK */}
-            {item['SIN_STOCK'] === 1 && (
-                <Animated.View
-                    style={{
-                        position: 'absolute',
-                        top: 5,
-                        right: 5,
-                        backgroundColor: 'black',
-                        paddingVertical: 4,
-                        paddingHorizontal: 8,
-                        borderRadius: 6,
-                    }}
-                >
-                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 12 }}>
-                        SIN STOCK
-                    </Text>
-                </Animated.View>
-            )}
         </View>
-    );
+      )}
+
+      {item['OFERTA'] === 1 && (
+        <Animated.View style={{ position: 'absolute', top: 5, right: 5, backgroundColor: 'red', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 }}>
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>OFERTA</Text>
+        </Animated.View>
+      )}
+
+      {item['SIN_STOCK'] === 1 && (
+        <Animated.View style={{ position: 'absolute', top: 5, right: 5, backgroundColor: 'black', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 }}>
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>SIN STOCK</Text>
+        </Animated.View>
+      )}
+      {item['VIDEOS'] && <TouchableOpacity style={{ marginTop: 10 }} onPress={openLink}>
+        <Text style={{ color: 'blue', textDecorationLine: 'underline' }}>Video</Text>
+      </TouchableOpacity>}
+    </View>
+  );
 };
 
 export default ItemCard;

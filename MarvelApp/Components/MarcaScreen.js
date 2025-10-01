@@ -149,6 +149,7 @@ const MarcaScreen = () => {
                 key={j}
                 item={item}
                 textColor={"black"}
+                marca={marcaName}
                 backgroundColor={brandColors[marcaName]?.background || brandColors.DEFAULT.background}
               >{item.MAQUINAS}
               </ItemCard>
