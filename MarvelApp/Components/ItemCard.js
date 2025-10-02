@@ -169,7 +169,7 @@ const ItemCard = ({ item, textColor,marca }) => {
 
     const shareOptions = {
       title: 'Compartir en WhatsApp',
-      message: `Marca: ${marcaName} \n📦 Máquina: ${item['MAQUINAS'] || 'N/A'}\n🔖 Código: ${item['CODIGO'] || 'N/A'} \n💵 Precio final: ${item['PRECIO FINAL EN PESOS'] ? redondearYFormatear(item['PRECIO FINAL EN PESOS']) : 'No disponible'}`,
+      message: `Marca: ${marca} \n📦 Máquina: ${item['MAQUINAS'] || 'N/A'}\n🔖 Código: ${item['CODIGO'] || 'N/A'} \n💵 Precio final: ${item['PRECIO FINAL EN PESOS'] ? redondearYFormatear(item['PRECIO FINAL EN PESOS']) : 'No disponible'}`,
       url: localImageUri,
       social: Share.Social.WHATSAPP,
     };
