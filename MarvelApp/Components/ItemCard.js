@@ -37,7 +37,7 @@ async function getCachedImage(driveUrl) {
   }
 }
 
-const ItemCard = ({ item, textColor,marca }) => {
+const ItemCard = ({ item, textColor, marca }) => {
   const scaleAnim = useRef(new Animated.Value(0)).current;
   const [showPrices, setShowPrices] = useState(false);
   const [localImageUri, setLocalImageUri] = useState(null);
@@ -165,14 +165,21 @@ const ItemCard = ({ item, textColor,marca }) => {
     }
   };
   const compartir = async () => {
-    if (!localImageUri) return;
+    const mensaje = `Marca: ${marca} 
+📦 Máquina: ${item['MAQUINAS'] || 'N/A'}
+🔖 Código: ${item['CODIGO'] || 'N/A'} 
+💵 Precio final: ${item['PRECIO FINAL EN PESOS'] ? redondearYFormatear(item['PRECIO FINAL EN PESOS']) : 'No disponible'}`;
 
     const shareOptions = {
       title: 'Compartir en WhatsApp',
-      message: `Marca: ${marca} \n📦 Máquina: ${item['MAQUINAS'] || 'N/A'}\n🔖 Código: ${item['CODIGO'] || 'N/A'} \n💵 Precio final: ${item['PRECIO FINAL EN PESOS'] ? redondearYFormatear(item['PRECIO FINAL EN PESOS']) : 'No disponible'}`,
-      url: localImageUri,
+      message: mensaje,
       social: Share.Social.WHATSAPP,
     };
+
+    // ✅ Solo agrega la imagen si existe una URL válida
+    if (localImageUri) {
+      shareOptions.url = localImageUri;
+    }
 
     try {
       await Share.open(shareOptions);
@@ -180,6 +187,7 @@ const ItemCard = ({ item, textColor,marca }) => {
       console.log('Error al compartir:', err);
     }
   };
+
   return (
     <View style={{ marginBottom: 20, borderRadius: 10, borderWidth: 1, borderColor: 'black', backgroundColor: '#fff' }}>
       {/* ✅ Cargamos imagen cacheada o URL original */}
