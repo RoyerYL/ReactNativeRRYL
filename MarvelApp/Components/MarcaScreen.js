@@ -146,7 +146,7 @@ const MarcaScreen = () => {
             {sec.items.map((item, j) => (
 
               <ItemCard
-                key={j}
+                key={item['CODIGO']}
                 item={item}
                 textColor={"black"}
                 marca={marcaName}
