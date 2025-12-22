@@ -49,6 +49,11 @@ const ItemCard = ({ item, textColor }) => {
       Animated.spring(scaleAnim, { toValue: 1, friction: 3, useNativeDriver: true }).start();
     }
   }, []);
+  useEffect(() => {
+    if (item['OFERTA'] === 1) {
+      Animated.spring(scaleAnim, { toValue: 1, friction: 3, useNativeDriver: true }).start();
+    }
+  }, []);
 
   // ⬇️ Descargamos y cacheamos la imagen
   useEffect(() => {
@@ -68,79 +73,79 @@ const ItemCard = ({ item, textColor }) => {
     }
   };
 
-/**
- * Intenta convertir strings con distintos formatos de moneda a Number.
- * Soporta:
- *  - "$1,041,200.00"
- *  - "1.041.200,00"
- *  - "1041200"
- *  - "1,041,200"
- */
- function parseCurrencyStringToNumber(str) {
-  if (str == null) return NaN;
-  const s = String(str).trim();
+  /**
+   * Intenta convertir strings con distintos formatos de moneda a Number.
+   * Soporta:
+   *  - "$1,041,200.00"
+   *  - "1.041.200,00"
+   *  - "1041200"
+   *  - "1,041,200"
+   */
+  function parseCurrencyStringToNumber(str) {
+    if (str == null) return NaN;
+    const s = String(str).trim();
 
-  // quitar todo excepto dígitos, punto y coma y signo negativo
-  const cleaned = s.replace(/[^\d.,-]/g, '');
+    // quitar todo excepto dígitos, punto y coma y signo negativo
+    const cleaned = s.replace(/[^\d.,-]/g, '');
 
-  if (!cleaned) return NaN;
+    if (!cleaned) return NaN;
 
-  const lastDot = cleaned.lastIndexOf('.');
-  const lastComma = cleaned.lastIndexOf(',');
+    const lastDot = cleaned.lastIndexOf('.');
+    const lastComma = cleaned.lastIndexOf(',');
 
-  let normalized = cleaned;
+    let normalized = cleaned;
 
-  if (lastDot !== -1 && lastComma !== -1) {
-    // hay ambos símbolos -> el que aparezca más a la derecha es el separador decimal
-    if (lastDot > lastComma) {
-      // punto decimal, eliminar comas (miles)
-      normalized = cleaned.replace(/,/g, '');
-    } else {
-      // coma decimal, eliminar puntos (miles) y reemplazar coma por punto
-      normalized = cleaned.replace(/\./g, '').replace(/,/g, '.');
+    if (lastDot !== -1 && lastComma !== -1) {
+      // hay ambos símbolos -> el que aparezca más a la derecha es el separador decimal
+      if (lastDot > lastComma) {
+        // punto decimal, eliminar comas (miles)
+        normalized = cleaned.replace(/,/g, '');
+      } else {
+        // coma decimal, eliminar puntos (miles) y reemplazar coma por punto
+        normalized = cleaned.replace(/\./g, '').replace(/,/g, '.');
+      }
+    } else if (lastComma !== -1) {
+      // solo coma presente -> decidir si es decimal (2 dígitos al final) o miles
+      const partAfter = cleaned.slice(lastComma + 1);
+      if (partAfter.length === 2) {
+        // coma como decimal
+        normalized = cleaned.replace(/\./g, '').replace(/,/g, '.');
+      } else {
+        // coma como separador de miles -> eliminar comas
+        normalized = cleaned.replace(/,/g, '');
+      }
+    } else if (lastDot !== -1) {
+      // solo punto -> decidir si decimal (2 dígitos) o miles
+      const partAfter = cleaned.slice(lastDot + 1);
+      if (partAfter.length === 2) {
+        // punto decimal
+        normalized = cleaned;
+      } else {
+        // punto como separador de miles -> eliminar puntos
+        normalized = cleaned.replace(/\./g, '');
+      }
     }
-  } else if (lastComma !== -1) {
-    // solo coma presente -> decidir si es decimal (2 dígitos al final) o miles
-    const partAfter = cleaned.slice(lastComma + 1);
-    if (partAfter.length === 2) {
-      // coma como decimal
-      normalized = cleaned.replace(/\./g, '').replace(/,/g, '.');
-    } else {
-      // coma como separador de miles -> eliminar comas
-      normalized = cleaned.replace(/,/g, '');
-    }
-  } else if (lastDot !== -1) {
-    // solo punto -> decidir si decimal (2 dígitos) o miles
-    const partAfter = cleaned.slice(lastDot + 1);
-    if (partAfter.length === 2) {
-      // punto decimal
-      normalized = cleaned;
-    } else {
-      // punto como separador de miles -> eliminar puntos
-      normalized = cleaned.replace(/\./g, '');
-    }
+
+    const num = parseFloat(normalized);
+    return Number.isFinite(num) ? num : NaN;
   }
 
-  const num = parseFloat(normalized);
-  return Number.isFinite(num) ? num : NaN;
-}
+  /**
+   * Redondea hacia arriba al múltiplo más cercano
+   */
+  function roundUpToMultiple(value, multiple = 50000) {
+    if (!Number.isFinite(value)) return NaN;
+    return Math.ceil(value / multiple) * multiple;
+  }
 
-/**
- * Redondea hacia arriba al múltiplo más cercano
- */
- function roundUpToMultiple(value, multiple = 50000) {
-  if (!Number.isFinite(value)) return NaN;
-  return Math.ceil(value / multiple) * multiple;
-}
-
-/**
- * Formatea número como "$1,050,000.00" (coma miles, punto decimal, 2 decimales)
- */
- function formatAsDollarUS(value) {
-  if (!Number.isFinite(value)) return null;
-  // toFixed + regex para separar miles garantiza consistencia en todos los runtimes JS
-  return '$' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
+  /**
+   * Formatea número como "$1,050,000.00" (coma miles, punto decimal, 2 decimales)
+   */
+  function formatAsDollarUS(value) {
+    if (!Number.isFinite(value)) return null;
+    // toFixed + regex para separar miles garantiza consistencia en todos los runtimes JS
+    return '$' + value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
 
 /**
  * Función todo-en-uno
@@ -206,7 +211,25 @@ const compartir = async () => {
           <Text style={{ color: "white", fontWeight: "bold" }}>📤 Compartir</Text>
         </TouchableOpacity>
       </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10 }}>
+        <TouchableOpacity onPress={() => setShowPrices(!showPrices)}>
+          <Text style={{ color: 'black' }}>
+            {showPrices ? 'Ocultar detalles ▲' : 'Ver detalles ▼'}
+          </Text>
+        </TouchableOpacity>
 
+        <TouchableOpacity onPress={compartir} style={{ backgroundColor: "#007bff", padding: 8, borderRadius: 6 }}>
+          <Text style={{ color: "white", fontWeight: "bold" }}>📤 Compartir</Text>
+        </TouchableOpacity>
+      </View>
+
+      {showPrices && (
+        <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
+          <Text>{item['PRECIO DOLAR AL GREMIO']
+            ? `Precio gremio USD: ${item['PRECIO DOLAR AL GREMIO']}`
+            : item['PRECIO EN PESOS AL GREMIO']
+              ? `Precio gremio ARS: ${item['PRECIO EN PESOS AL GREMIO']}`
+              : 'Precio gremio: N/A'}</Text>
       {showPrices && (
         <View style={{ paddingHorizontal: 10, paddingBottom: 10 }}>
           <Text>{item['PRECIO DOLAR AL GREMIO']
@@ -220,6 +243,11 @@ const compartir = async () => {
         </View>
       )}
 
+      {item['OFERTA'] === 1 && (
+        <Animated.View style={{ position: 'absolute', top: 5, right: 5, backgroundColor: 'red', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 }}>
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>OFERTA</Text>
+        </Animated.View>
+      )}
       {item['OFERTA'] === 1 && (
         <Animated.View style={{ position: 'absolute', top: 5, right: 5, backgroundColor: 'red', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 }}>
           <Text style={{ color: 'white', fontWeight: 'bold' }}>OFERTA</Text>
