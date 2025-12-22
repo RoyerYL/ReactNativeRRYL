@@ -13,7 +13,7 @@ const fetchSheetNames = async () => {
 
 // 📌 Obtener datos de una hoja específica
 const fetchSheetData = async (sheetName) => {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}!A1:I200?key=${API_KEY}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}!A1:J200?key=${API_KEY}`;
   const res = await fetch(url);
   const json = await res.json();
   return json.values; // array de arrays
