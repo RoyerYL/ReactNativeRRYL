@@ -1,228 +1,251 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  Button,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
   FlatList,
   StyleSheet,
+  Dimensions,
+  ScrollView,
+  Image,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-import { loadAllData } from './utils';
+import ItemCard from './ItemCard';
+export const images = {
+  DaiquiriFrutilla: require('../assets/DaiquiriFrutilla.png'),
+  DaiquiriDurazno: require('../assets/DaiquiriDurazno.png'),
+  // DaiquiriAnana: require('./DaiquiriAnana.png'),
+  // PasionRoja: require('./PasionRoja.png'),
+  // Gancia: require('./Gancia.png'),
+  // Fernet: require('./Fernet.png'),
+  // PinaColada: require('./PinaColada.png'),
+  PanteraRosa: require('../assets/PanteraRosa.png'),
+  // Caipirinha: require('./Caipirinha.png'),
+  // MentaFuerte: require('./MentaFuerte.png'),
+  // TequilaSunrise: require('./TequilaSunrise.png'),
+  PitufoAzul: require('../assets/PitufoAzul.png'),
+  // CubaLibre: require('./CubaLibre.png'),
+  // Destornillador: require('./Destornillador.png'),
+  LagunaAzul: require('../assets/LagunaAzul.png'),
+  // SinAlcoholFrutilla: require('./SinAlcoholFrutilla.png'),
+  // SinAlcoholDurazno: require('./SinAlcoholDurazno.png'),
+  // SinAlcoholAnana: require('./SinAlcoholAnana.png'),
+  // default: require('./default.png'),
+};
 
-// normalizar
+/* ================= CONFIG ================= */
+
+const CARD_WIDTH = 260;
+const CARD_HEIGHT = 360;
+const CARD_MARGIN = 10;
+
+/* ================ NORMALIZE ================ */
 const normalize = (s) =>
   s
     ? s
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
     : '';
 
+/* ================= COMPONENT ================= */
+
 const SheetView = () => {
-  const [data, setData] = useState(null);        // { allData, resumenPorMarca, allItems }
-  const [loading, setLoading] = useState(false);
-  const [query, setQuery] = useState('');
-  const [filtered, setFiltered] = useState([]);
   const navigation = useNavigation();
+  const [query, setQuery] = useState('');
+  const [numColumns, setNumColumns] = useState(1);
+  const [cart, setCart] = useState([]);
+  const [lista] = useState([
+    { id: 1, name: 'Daiquiri frutilla', imageKey: images.DaiquiriFrutilla },
+    { id: 2, name: 'Daiquiri durazno', imageKey: images.DaiquiriDurazno },
+    // { id: 3, name: 'Daiquiri anana', imageKey: 'daiquiri_anana' },
+    // { id: 4, name: 'Pasion Roja', imageKey: 'pasion_roja' },
+    // { id: 5, name: 'Gancia', imageKey: 'gancia' },
+    // { id: 6, name: 'Fernet', imageKey: 'fernet' },
+    // { id: 7, name: 'Pina Colada', imageKey: 'pina_colada' },
+    { id: 8, name: 'Pantera Rosa', imageKey: images.PanteraRosa },
+    // { id: 9, name: 'Caipirinha', imageKey: 'caipirinha' },
+    // { id: 10, name: 'Menta Fuerte', imageKey: 'menta_fuerte' },
+    // { id: 11, name: 'Tequila Sunrise', imageKey: 'tequila_sunrise' },
+    { id: 12, name: 'Pitufo Azul', imageKey: images.PitufoAzul },
+    // { id: 13, name: 'Cuba Libre', imageKey: 'cuba_libre' },
+    // { id: 14, name: 'Destornillador', imageKey: 'destornillador' },
+    { id: 15, name: 'Laguna Azul', imageKey: images.LagunaAzul },
+    // { id: 16, name: 'Sin alcohol Frutilla', imageKey: 'sin_alcohol_frutilla' },
+    // { id: 17, name: 'Sin alcohol durazno', imageKey: 'sin_alcohol_durazno' },
+    // { id: 18, name: 'Sin alcohol anana', imageKey: 'sin_alcohol_anana' },
+  ]);
 
-  // fallback por si hay @data viejo sin allItems
-  const flattenFromAllData = (allData) => {
-    if (!allData) return [];
-    const out = [];
-    for (const marca in allData) {
-      allData[marca]?.forEach((section) => {
-        section.items?.forEach((item) => {
-          out.push({ ...item, marca, section: section.section });
-        });
-      });
-    }
-    return out;
-  };
-
-  const items = useMemo(() => {
-    if (!data) return [];
-    if (Array.isArray(data.allItems) && data.allItems.length) return data.allItems;
-    // fallback si falta allItems en @data
-    return flattenFromAllData(data.allData);
-  }, [data]);
-
-  // cargar desde @data o desde Sheets
-  const loadDataFromStorage = async () => {
-    setLoading(true);
-    const jsonStr = await AsyncStorage.getItem('@data');
-    if (jsonStr) {
-      try {
-        const parsed = JSON.parse(jsonStr);
-        console.log(parsed);
-        
-        setData(parsed);
-      } catch {
-        const fresh = await loadAllData();
-        setData(fresh);
-      }
-    } else {
-      const fresh = await loadAllData();
-      setData(fresh);
-    }
-    setLoading(false);
+  /* ====== calcular columnas dinámicas ====== */
+  const calculateColumns = () => {
+    const screenWidth = Dimensions.get('window').width;
+    const columns = Math.floor(
+      screenWidth / (CARD_WIDTH + CARD_MARGIN * 2)
+    );
+    return Math.max(columns, 1);
   };
 
   useEffect(() => {
-    loadDataFromStorage();
+    const updateLayout = () => {
+      setNumColumns(calculateColumns());
+    };
+
+    updateLayout();
+
+    const sub = Dimensions.addEventListener('change', updateLayout);
+    return () => sub?.remove();
   }, []);
 
-  // actualizar (y guardar misma forma en @data)
-  const refreshData = async () => {
-    setLoading(true);
-    const fresh = await loadAllData();               // ya guarda en @data
-    setData(fresh);                                  // y también actualiza el estado
-    setLoading(false);
-  };
-
-  // filtrar cuando cambie query o items
-  useEffect(() => {
-    if (!query.trim()) {
-      setFiltered([]);
-      return;
-    }
-    const terms = normalize(query).split(' ').filter(Boolean);
-    const res = items.filter((item) => {
-      const haystack = `${normalize(item.CODIGO)} ${normalize(item.MAQUINAS)} ${normalize(item.marca)}`;
-      return terms.every((t) => haystack.includes(t));
-    });
-    setFiltered(res.slice(0, 15));
-  }, [query, items]);
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
-  if (!data) {
-    return (
-      <View style={styles.center}>
-        <Text>No hay datos para mostrar</Text>
-        <Button title="Cargar datos" onPress={refreshData} />
-      </View>
-    );
-  }
+  const filteredList =
+    lista?.filter(
+      (item) =>
+        item?.name &&
+        normalize(item.name).includes(normalize(query))
+    ) ?? [];
 
   return (
-    <View style={{ flex: 1, padding: 10 }}>
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar por nombre o código..."
-          value={query}
-          onChangeText={setQuery}
-        />
-        {query.length > 0 && (
-          <TouchableOpacity onPress={() => setQuery('')}>
-            <Text style={styles.clearButton}>X</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+    <View style={styles.container}>
 
-      {/* Resultados */}
-      {filtered.length > 0 && (
-        <View style={styles.dropdown}>
-          <FlatList
-            keyboardShouldPersistTaps="handled"
-            data={filtered}
-            keyExtractor={(item, idx) => `${item.marca}-${item.CODIGO}-${idx}`}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => navigation.navigate('MarcaDetalle', { item })}>
-                <View style={styles.dropdownItem}>
-                  <View style={styles.tag}>
-                    <Text style={styles.tagText}>{item.marca}</Text>
-                  </View>
-                  <Text style={styles.itemText}>
-                    {item.CODIGO} - {item.MAQUINAS}
-                  </Text>
-                  <Text style={styles.price}>
-                    {item['PRECIO FINAL EN PESOS'] ? `$ ${item['PRECIO FINAL EN PESOS']}` : 'No hay precio'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
+
+      {/* LISTA */}
+      <FlatList
+        key={numColumns} // 🔑 fuerza re-render al cambiar columnas
+        data={filteredList}
+        numColumns={numColumns}
+        keyExtractor={(item, index) =>
+          item?.id?.toString() ?? index.toString()
+        }
+        renderItem={({ item }) => (
+          <ItemCard
+            {...item}
+            width={CARD_WIDTH}
+            height={CARD_HEIGHT}
+            onAddToCart={() => setCart([...cart, item])}
+          // onPress={() =>
+          //   navigation.navigate('ItemDetail', { item })
+          // }
           />
+        )}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.list}
+      />
+
+      {/* MINI CART */}
+      {cart.length > 0 && (
+        <View style={styles.cartContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.cartScroll}
+          >
+            {cart.map((item, index) => (
+              <View key={`${item.id}-${index}`} style={styles.cartItem}>
+                <Image
+                  source={item.imageKey}
+                  style={styles.cartImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.cartText} numberOfLines={1}>
+                  {item.name}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
         </View>
       )}
 
-      {/* Resumen marcas */}
-      <Text style={styles.title}>Precio de Maquinas</Text>
-      <ScrollView style={{ marginTop: 10 }}>
-        {Object.entries(data.resumenPorMarca).map(([marcaName, resumen]) => (
-          <TouchableOpacity
-            key={marcaName}
-            style={styles.card}
-            onPress={() =>
-              navigation.navigate('MarcaDetalle', {
-                marcaName,
-                marcaData: data.allData[marcaName],
-              })
-            }
-          >
-            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{marcaName}</Text>
-            <Text>Máquinas: {resumen.maquinas}</Text>
-            <Text>Ofertas: {resumen.ofertas}</Text>
-            {resumen.ofertas > 0 && (
-              <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 5 }}>
-                🔥 ¡Esta marca tiene ofertas disponibles!
-              </Text>
-            )}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <TouchableOpacity onPress={refreshData} style={styles.refreshButton}>
-        <Text style={styles.refreshText}>Actualizar datos</Text>
-      </TouchableOpacity>
     </View>
   );
 };
 
 export default SheetView;
 
+/* ================= STYLES ================= */
+
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f6f6f6',
+  },
+
+  list: {
+    alignItems: 'center',
+    paddingBottom: 100, // >= cart height
+  },
+
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#ccc',
     paddingHorizontal: 10,
-    marginBottom: 10,
-    marginTop: 20,
+    margin: 10,
   },
-  searchInput: { flex: 1, height: 40, fontSize: 16 },
-  clearButton: { fontSize: 18, fontWeight: 'bold', color: '#ff0000', marginLeft: 8 },
-  dropdown: {
+
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 16,
+  },
+
+  clearButton: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ff0000',
+  },
+
+  refreshButton: {
+    backgroundColor: '#ff8000',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    margin: 10,
+  },
+
+  refreshText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  cartContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 90,                 // 👈 CLAVE
     backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    maxHeight: 250,
-    marginBottom: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
+    justifyContent: 'center',
+
+    zIndex: 1000,        // 👈 iOS
+    elevation: 20,       // 👈 Android
   },
-  dropdownItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  itemText: { marginTop: 16, fontSize: 14 },
-  price: { marginTop: 4, fontWeight: 'bold', color: '#000000ff' },
-  tag: { position: 'absolute', top: 8, right: 8, backgroundColor: '#333', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  tagText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-  title: { fontSize: 24, fontWeight: 'bold', marginTop: 10, color: '#000', textAlign: 'center' },
-  card: { padding: 16, backgroundColor: '#eeeeeeb9', marginBottom: 10, borderRadius: 8, borderWidth: 1, borderColor: '#000' },
-  refreshButton: { backgroundColor: '#ff8000', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8, alignItems: 'center', marginVertical: 10 },
-  refreshText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+
+  cartScroll: {
+    paddingHorizontal: 10,
+  },
+
+  cartItem: {
+    width: 80,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+
+  cartImage: {
+    width: 44,
+    height: 44,
+    marginBottom: 4,
+  },
+
+  cartText: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+
 });
