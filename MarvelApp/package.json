@@ -19,6 +19,7 @@
     "@react-navigation/stack": "^7.0.0",
     "axios": "^1.7.4",
     "dotenv": "^17.2.1",
+    "expo": "~53.0.22",
     "expo-file-system": "~18.1.11",
     "expo-linking": "^8.0.8",
     "expo-sharing": "^14.0.7",
@@ -29,6 +30,7 @@
     "react-dom": "19.0.0",
     "react-native": "0.79.5",
     "react-native-awesome-alerts": "^2.0.0",
+    "react-native-calendars": "^1.1313.0",
     "react-native-element-dropdown": "^2.12.4",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-pager-view": "^6.8.1",
@@ -36,13 +38,13 @@
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-share": "^12.2.0",
+    "react-native-sqlite-storage": "^6.0.1",
     "react-native-tab-view": "^4.1.2",
     "react-native-web": "^0.20.0",
     "react-redux": "^9.2.0",
     "redux": "^5.0.1",
     "sweetalert2": "^11.22.2",
-    "upgrade": "^1.1.0",
-    "expo": "~53.0.22"
+    "upgrade": "^1.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

@@ -1,85 +1,71 @@
+// ItemCard.js
 import React from "react";
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-} from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 
 const ItemCard = ({
-  id = null,
-  name = "Producto",
-  description = "",
-  price = 0,
-  imageKey = null,
-  volume = "",
-  isCold = true,
-  onAddToCart ,
+  id,
+  name,
+  precio1,
+  precio2,
+  imageKey,
+  usandoPrecio2 = false,
+  onSelectPrecio,
+  onAddToCart,
+  width = 260,
+  height = 360,
 }) => {
-  // // Fallback de imagen
-  // const imageSource = image
-  //   ? { uri: image }
-  //   : require("../assets/no-image.png"); // opcional
-  
+  const precioFinal =
+    usandoPrecio2 && typeof precio2 === "number"
+      ? precio2
+      : Number(precio1 ?? 0);
+
   return (
-    <View style={styles.card}>
-      {/* Imagen */}
-      <View style={styles.imageContainer}>
-        <Image source={imageKey} style={styles.image} />
+    <View style={[styles.card, { width, height }]}>
+      <Image source={imageKey} style={styles.image} />
 
-        {/* Badge */}
-        <View
-          style={[
-            styles.badge,
-            isCold ? styles.coldBadge : styles.hotBadge,
-          ]}
-        >
-          <Text style={styles.badgeText}>
-            {isCold ? "Fría" : "Caliente"}
-          </Text>
-        </View>
-      </View>
-
-      {/* Contenido */}
       <View style={styles.content}>
-        <Text style={styles.name} numberOfLines={1}>
-          {name || "Sin nombre"}
-        </Text>
+        <Text style={styles.name}>{name}</Text>
 
-        {description ? (
-          <Text style={styles.description} numberOfLines={2}>
-            {description}
-          </Text>
-        ) : null}
-
-        <View style={styles.footer}>
-          <View>
-            {volume ? (
-              <Text style={styles.volume}>{volume}</Text>
-            ) : null}
-
-            <Text style={styles.price}>
-              ${price ?? 0}
-            </Text>
-          </View>
-
+        {/* PRECIOS */}
+        <View style={styles.prices}>
           <TouchableOpacity
-            style={styles.addButton}
-            onPress={() =>
-              onAddToCart({
-                id,
-                name,
-                price,
-              })
-            }
-            disabled={price == null}
+            style={[
+              styles.priceBox,
+              !usandoPrecio2 && styles.priceActive,
+            ]}
+            onPress={() => onSelectPrecio(false)}
           >
-            <Text style={styles.addButtonText}>
-              Agregar
+            <Text style={styles.priceLabel}>Precio 1</Text>
+            <Text style={styles.priceValue}>
+              ${Number(precio1 ?? 0).toLocaleString("es-AR")}
             </Text>
           </TouchableOpacity>
+
+          {typeof precio2 === "number" && (
+            <TouchableOpacity
+              style={[
+                styles.priceBox,
+                usandoPrecio2 && styles.priceActive,
+              ]}
+              onPress={() => onSelectPrecio(true)}
+            >
+              <Text style={styles.priceLabel}>Precio 2</Text>
+              <Text style={styles.priceValue}>
+                ${precio2.toLocaleString("es-AR")}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {/* AGREGAR */}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => onAddToCart(precioFinal)}
+        >
+          <Text style={styles.addText}>
+            🛒 Agregar · ${precioFinal.toLocaleString("es-AR")}
+          </Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -87,99 +73,57 @@ const ItemCard = ({
 
 export default ItemCard;
 
-/* ================= ESTILOS ================= */
-
 const styles = StyleSheet.create({
   card: {
-    width: 260,
-    height: 360,
     backgroundColor: "#fff",
     borderRadius: 18,
     overflow: "hidden",
-    margin: 10,
-    elevation: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    elevation: 4,
   },
-
-  imageContainer: {
-    height: 160,
-    backgroundColor: "#f2f2f2",
-  },
-
   image: {
+    height: 160,
     width: "100%",
-    height: "100%",
     resizeMode: "cover",
   },
-
-  badge: {
-    position: "absolute",
-    top: 10,
-    left: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-
-  coldBadge: {
-    backgroundColor: "#00aaff",
-  },
-
-  hotBadge: {
-    backgroundColor: "#ff6b00",
-  },
-
-  badgeText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-
   content: {
-    padding: 14,
+    padding: 12,
   },
-
   name: {
     fontSize: 18,
     fontWeight: "bold",
   },
-
-  description: {
-    fontSize: 14,
-    color: "#666",
-    marginTop: 4,
-  },
-
-  footer: {
-    marginTop: 12,
+  prices: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    marginTop: 10,
+  },
+  priceBox: {
+    flex: 1,
+    padding: 10,
+    marginHorizontal: 5,
+    borderRadius: 12,
+    backgroundColor: "#eee",
     alignItems: "center",
   },
-
-  volume: {
+  priceActive: {
+    backgroundColor: "#C8E6C9",
+  },
+  priceLabel: {
     fontSize: 12,
-    color: "#888",
+    color: "#555",
   },
-
-  price: {
-    fontSize: 20,
+  priceValue: {
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#d32f2f",
   },
-
   addButton: {
-    backgroundColor: "#ffc72c",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    backgroundColor: "#FFC72C",
+    paddingVertical: 12,
     borderRadius: 20,
+    alignItems: "center",
+    marginTop: 12,
   },
-
-  addButtonText: {
+  addText: {
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#000",
   },
 });

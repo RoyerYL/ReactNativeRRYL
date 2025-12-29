@@ -1,10 +1,10 @@
-// App.js o donde definas tu navegación principal
+// App.js
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import PreciosScreen from './Components/PreciosScreen';
 import SheetView from './Components/ShettView';
-import MarcaScreen from './Components/MarcaScreen';
-
+import CajaVentasScreen from './Components/CajaVentasScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -12,34 +12,54 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Marcas">
-        <Stack.Screen name="Marcas"
+        <Stack.Screen
+          name="Marcas"
+          component={SheetView}
           options={{
             title: 'Marcas',
             headerStyle: {
-              backgroundColor: '#003b77', // color de fondo del header
+              backgroundColor: '#003b77',
             },
-            headerTintColor: '#fff', // color del texto y flecha de atrás
+            headerTintColor: '#fff',
             headerTitleStyle: {
               fontWeight: 'bold',
               fontSize: 24,
             },
-            headerTitleAlign: 'center', // centrar el título
+            headerTitleAlign: 'center',
             headerShown: false
-          }} component={SheetView} />
-        <Stack.Screen name="MarcaDetalle"
+          }}
+        />
+
+        {/* NUEVA PANTALLA */}
+        <Stack.Screen
+          name="Precios"
+          component={PreciosScreen}
           options={{
-            title: 'Maquinas',
+            title: 'Administrar Precios',
             headerStyle: {
-              backgroundColor: '#003b77', // color de fondo del header
+              backgroundColor: '#003b77',
             },
-            headerTintColor: '#fff', // color del texto y flecha de atrás
+            headerTintColor: '#fff',
             headerTitleStyle: {
               fontWeight: 'bold',
-              fontSize: 24,
+              fontSize: 20,
             },
-            headerTitleAlign: 'center', // centrar el título
+            headerTitleAlign: 'center',
+            headerBackTitle: 'Atrás',
           }}
-          component={MarcaScreen} />
+        />
+         <Stack.Screen 
+          name="CajaVentas"
+          component={CajaVentasScreen}
+          options={{
+            title: 'Ventas & Caja',
+            headerStyle: { backgroundColor: '#003b77' },
+            headerTintColor: '#fff',
+            headerTitleStyle: { fontWeight: 'bold', fontSize: 20 },
+            headerTitleAlign: 'center',
+            headerBackTitle: 'Atrás',
+          }} 
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
