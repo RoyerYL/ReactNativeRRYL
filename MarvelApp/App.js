@@ -33,7 +33,7 @@ export default function App() {
         {/* NUEVA PANTALLA */}
         <Stack.Screen
           name="Precios"
-          component={PreciosScreen}
+          component={CajaVentasScreen}
           options={{
             title: 'Administrar Precios',
             headerStyle: {

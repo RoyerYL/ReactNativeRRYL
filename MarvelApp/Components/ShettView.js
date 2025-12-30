@@ -17,10 +17,10 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import ItemCard from './ItemCard';
 
-// Importa la base de datos simple
+// Importa la base de datos SQLite
 import SimpleDatabase from './simpleDatabase';
 import SimpleOperations from './simpleOperations';
-import simpleDatabase from './simpleDatabase';
+
 export const images = {
   "Daiquiri Frutilla": require('../assets/DaiquiriFrutilla.png'),
   "Daiquiri Durazno": require('../assets/DaiquiriDurazno.png'),
@@ -31,6 +31,7 @@ export const images = {
   "Pantera Rosa": require('../assets/PanteraRosa.png'),
   "Caipirinha": require('../assets/Caipirinha.jpeg'),
   "Menta Fuerte": require('../assets/MentaFuerte.jpeg'),
+  "Mojito": require('../assets/Mojito.jpeg'),
   "Tequila Sunrise": require('../assets/TequilaSunrise.jpeg'),
   "Pitufo Azul": require('../assets/PitufoAzul.png'),
   "Cuba Libre": require('../assets/CubaLibre.jpeg'),
@@ -42,7 +43,6 @@ export const images = {
 const CARD_WIDTH = 260;
 const CARD_HEIGHT = 360;
 const CARD_MARGIN = 10;
-const PRECIO_BASE = 3500;
 
 /* ================ NORMALIZE ================ */
 const normalize = (s) =>
@@ -54,7 +54,6 @@ const normalize = (s) =>
     : '';
 
 /* ================= COMPONENT ================= */
-
 
 const SheetView = () => {
   const navigation = useNavigation();
@@ -71,15 +70,20 @@ const SheetView = () => {
   const [usandoPrecio2, setUsandoPrecio2] = useState({});
   const [precioSeleccionado, setPrecioSeleccionado] = useState({});
   const [cantidades, setCantidades] = useState({});
-  // En SheetView.js - Agrega estos estados después de los otros estados
   const [showCheckout, setShowCheckout] = useState(false);
   const [metodoPago, setMetodoPago] = useState('efectivo');
   const [efectivoRecibido, setEfectivoRecibido] = useState('');
   const [cambio, setCambio] = useState(0);
   const [observaciones, setObservaciones] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
   /* ====== INICIALIZAR BASE DE DATOS ====== */
   useEffect(() => {
-    initializeDatabase();
+    const init = async () => {
+      await initializeDatabase();
+    };
+    init();
+    
     const updateLayout = () => {
       setNumColumns(calculateColumns());
     };
@@ -88,94 +92,8 @@ const SheetView = () => {
     const sub = Dimensions.addEventListener('change', updateLayout);
     return () => sub?.remove();
   }, []);
-  // Función para alternar entre precio 1 y 2
-  const alternarPrecio = (itemId) => {
-    setUsandoPrecio2(prev => ({
-      ...prev,
-      [itemId]: !prev[itemId]
-    }));
-  };
 
-  // Función para agregar al carrito con sistema dual
-  const agregarAlCarritoSistemaDual = (item, usarPrecio2 = false) => {
-    const cantidadActual = cartCantidades[item.id] || 0;
-    setCartCantidades({
-      ...cartCantidades,
-      [item.id]: cantidadActual + 1
-    });
 
-    // Marcar si usa precio 2
-    if (usarPrecio2) {
-      setUsandoPrecio2(prev => ({
-        ...prev,
-        [item.id]: true
-      }));
-    }
-
-    // Agregar al carrito si no existe
-    if (!cart.some(i => i.id === item.id)) {
-      setCart([...cart, item]);
-    }
-  };
-
-  // Función para calcular totales con sistema dual
-  const calcularTotalesConSistemaDual = async () => {
-    try {
-      // Preparar items para el cálculo
-      const itemsVenta = cart.map(item => ({
-        cocktailId: item.db_id || item.id,
-        cantidad: cartCantidades[item.id] || 0,
-        usarPrecio2: usandoPrecio2[item.id] || false
-      })).filter(item => item.cantidad > 0);
-
-      if (itemsVenta.length === 0) {
-        return {
-          total_precio1: 0,
-          total_precio2: 0,
-          total_final: 0,
-          descuento_total: 0,
-          items: []
-        };
-      }
-
-      // Usar la nueva función de SimpleOperations
-      const totales = await SimpleOperations.calcularTotalesVentaConSistemaDual(itemsVenta);
-
-      return totales;
-
-    } catch (error) {
-      console.error('Error calculando totales duales:', error);
-      return {
-        total_precio1: 0,
-        total_precio2: 0,
-        total_final: 0,
-        descuento_total: 0,
-        items: []
-      };
-    }
-  };
-  
-  // En SheetView.js - Después de las otras funciones
-  useEffect(() => {
-    cargarDatos2();
-  }, []);
-
-  const cargarDatos2 = async () => {
-    try {
-      setLoading(true);
-      
-      // 1. Verificar estado de caja
-      const estadoCaja = await simpleDatabase.getEstadoCaja();
-      setCajaAbierta(estadoCaja.abierta);
-      
-    } catch (error) {
-      console.error('Error cargando datos:', error);
-      Alert.alert('Error', 'No se pudieron cargar los datos');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
   /* ====== FUNCIONES DE CHECKOUT ====== */
   const abrirCheckout = () => {
     if (Object.values(cantidades).reduce((a, b) => a + b, 0) === 0) {
@@ -183,19 +101,20 @@ const SheetView = () => {
       return;
     }
 
-    // if (!cajaAbierta) {
-    //   Alert.alert('⚠️ Caja Cerrada', 'Debe abrir la caja antes de vender', [
-    //     {
-    //       text: 'Abrir Caja',
-    //       onPress: () => manejarCaja()
-    //     },
-    //     {
-    //       text: 'Cancelar',
-    //       style: 'cancel'
-    //     }
-    //   ]);
-    //   return;
-    // }
+    // Comentado temporalmente para facilitar pruebas
+    if (!cajaAbierta) {
+      Alert.alert('⚠️ Caja Cerrada', 'Debe abrir la caja antes de vender', [
+        {
+          text: 'Abrir Caja',
+          onPress: () => manejarCaja()
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        }
+      ]);
+      return;
+    }
 
     // Calcular el total antes de abrir el checkout
     const totalCalculado = calcularTotal();
@@ -271,12 +190,9 @@ const SheetView = () => {
         total_con_descuento: total,
         descuento_total: 0,
         metodo_pago: metodoPago,
-        tipo_consumo: 'local',
-        cliente: '',
-        mesa: '',
-        observaciones: observaciones.trim(),
+        cliente: observaciones.trim() || '',
         detalles: detallesVenta,
-        fecha: new Date().toISOString()
+        promociones_aplicadas: []
       };
 
       // Registrar venta en la base de datos
@@ -291,7 +207,7 @@ const SheetView = () => {
         `Ticket: ${ticketNum}\nTotal: $${total.toLocaleString()}\nMétodo: ${metodoPago}`,
         [
           {
-            text: 'Imprimir Ticket',
+            text: 'Ver Ticket',
             onPress: () => imprimirTicket(ticketNum, venta)
           },
           {
@@ -320,34 +236,32 @@ const SheetView = () => {
     // Aquí iría la lógica de impresión
     // Por ahora solo mostramos un resumen
     const ticketText = `
-  ╔══════════════════════╗
-  ║     BAR DE CÓCTELES  ║
-  ╠══════════════════════╣
-  ║ Ticket: ${ticketNum.padEnd(10)} ║
-  ║ Fecha: ${new Date().toLocaleDateString()} ║
-  ║ Hora: ${new Date().toLocaleTimeString()} ║
-  ╠══════════════════════╣
-  
-  ${venta.detalles.map(item =>
+╔══════════════════════╗
+║     BAR DE CÓCTELES  ║
+╠══════════════════════╣
+║ Ticket: ${ticketNum.padEnd(10)} ║
+║ Fecha: ${new Date().toLocaleDateString()} ║
+║ Hora: ${new Date().toLocaleTimeString()} ║
+╠══════════════════════╣
+${venta.detalles.map(item =>
       `${item.nombre.substring(0, 15).padEnd(15)} ${item.cantidad.toString().padStart(2)} x $${item.precio_unitario.toLocaleString()}`
     ).join('\n')}
-  
-  ╠══════════════════════╣
-  ║ TOTAL: $${venta.total_normal.toLocaleString().padStart(10)} ║
-  ║ Método: ${venta.metodo_pago.padEnd(10)} ║
-  ╚══════════════════════╝
-  `;
+╠══════════════════════╣
+║ TOTAL: $${venta.total_normal.toLocaleString().padStart(10)} ║
+║ Método: ${venta.metodo_pago.padEnd(10)} ║
+╚══════════════════════╝
+`;
 
     Alert.alert('📄 Ticket Generado', ticketText);
   };
-  // En el renderItem del ItemCard, pasa una función que permita alternar precios
+
   const initializeDatabase = async () => {
     try {
       setLoading(true);
       console.log('Inicializando base de datos...');
 
-      // Inicializar la base de datos simple
-      await SimpleDatabase.init();
+      // Inicializar la base de datos SQLite
+      await SimpleOperations.init();
 
       // Cargar datos
       await cargarDatos();
@@ -375,20 +289,13 @@ const SheetView = () => {
           normalize(key).includes(normalize(cocktail.nombre)) ||
           normalize(cocktail.nombre).includes(normalize(key))
         );
-        console.log("--cocktail--");
-
-        console.log(cocktail);
-        console.log("--image--");
-
-        console.log(imageKey);
 
         return {
           id: cocktail.id,
           name: cocktail.nombre,
-          precio1: cocktail.precio || PRECIO_BASE,
-          precio2: cocktail.precio2 || null, // o precio_mayorista
+          precio1: cocktail.precio1 || 3500,
+          precio2: cocktail.precio2 || null,
           tiene_precio2: !!cocktail.precio2,
-
           categoria: cocktail.categoria,
           imageKey: imageKey ? images[imageKey] : images.DaiquiriFrutilla,
           db_id: cocktail.id,
@@ -408,14 +315,24 @@ const SheetView = () => {
     return [
       {
         id: 1,
-        name: 'Daiquiri frutilla',
-        price: 3500,
+        name: 'Daiquiri Frutilla',
+        precio1: 3500,
+        precio2: 3000,
         categoria: 'daiquiri',
         imageKey: images.DaiquiriFrutilla,
         db_id: 1,
         descripcion: 'Daiquiri de frutilla fresca'
       },
-      // ... más cócteles de ejemplo
+      {
+        id: 2,
+        name: 'Daiquiri Durazno',
+        precio1: 3500,
+        precio2: 3000,
+        categoria: 'daiquiri',
+        imageKey: images.DaiquiriDurazno,
+        db_id: 2,
+        descripcion: 'Daiquiri de durazno natural'
+      }
     ];
   };
 
@@ -444,13 +361,14 @@ const SheetView = () => {
 
   const verificarCaja = async () => {
     try {
-      const estadoCaja = await SimpleDatabase.getEstadoCaja();
-      setCajaAbierta(estadoCaja.abierta);
+      const estadoCaja = await SimpleOperations.obtenerCajaAbierta();
+      setCajaAbierta(estadoCaja ? estadoCaja.abierta : false);
     } catch (error) {
       console.error('Error verificando caja:', error);
       setCajaAbierta(false);
     }
   };
+
   const quitarDelCarrito = (item) => {
     const key = `${item.id}-${item.price}`;
     const cantidadActual = cantidades[key] || 0;
@@ -487,7 +405,13 @@ const SheetView = () => {
     setCart((prev) => {
       const existe = prev.find((i) => i.id === item.id && i.price === precioFinal);
       if (existe) return prev;
-      return [...prev, { id: item.id, name: item.name, imageKey: item.imageKey, price: precioFinal }];
+      return [...prev, { 
+        id: item.id, 
+        name: item.name, 
+        imageKey: item.imageKey, 
+        price: precioFinal,
+        db_id: item.db_id 
+      }];
     });
 
     setCantidades((prev) => ({
@@ -497,8 +421,6 @@ const SheetView = () => {
     }));
   };
 
-
-
   const calcularTotalNormal = () => {
     let total = 0;
     cart.forEach(item => {
@@ -506,51 +428,6 @@ const SheetView = () => {
       total += item.price * cantidad;
     });
     return total;
-  };
-
-  const calcularTotalesConPromociones = async () => {
-    try {
-      let totalConPromo = 0;
-      let descuentoTotal = 0;
-      let itemsConPromo = [];
-
-      for (const item of cart) {
-        const cantidad = cartCantidades[item.id] || 0;
-        if (cantidad > 0) {
-          const calculo = await PromotionOperations.calcularPrecioConPromocion(
-            item.db_id || item.id,
-            cantidad,
-            item.price
-          );
-
-          itemsConPromo.push({
-            ...item,
-            cantidad,
-            calculoPromo: calculo
-          });
-
-          totalConPromo += calculo.precio_con_promocion;
-          descuentoTotal += calculo.descuento_aplicado;
-        }
-      }
-
-      return {
-        total_normal: calcularTotalNormal(),
-        total_con_promocion: totalConPromo,
-        descuento_total: descuentoTotal,
-        ahorro: calcularTotalNormal() - totalConPromo,
-        items: itemsConPromo
-      };
-    } catch (error) {
-      console.error('Error calculando promociones:', error);
-      return {
-        total_normal: calcularTotalNormal(),
-        total_con_promocion: calcularTotalNormal(),
-        descuento_total: 0,
-        ahorro: 0,
-        items: []
-      };
-    }
   };
 
   /* ====== FUNCIONES DE PROMOCIONES ====== */
@@ -566,7 +443,7 @@ const SheetView = () => {
       const fechaFin = new Date();
       fechaFin.setDate(fechaFin.getDate() + 7);
 
-      await PromotionOperations.crearPromocion2porPrecio(
+      await SimpleOperations.crearPromocion2porPrecio(
         cocktailSeleccionado.db_id || cocktailSeleccionado.id,
         3000,
         {
@@ -592,7 +469,7 @@ const SheetView = () => {
       const fechaFin = new Date();
       fechaFin.setDate(fechaFin.getDate() + 7);
 
-      await PromotionOperations.crearPromocion2x1(
+      await SimpleOperations.crearPromocion2x1(
         cocktailSeleccionado.db_id || cocktailSeleccionado.id,
         {
           nombre: `🎯 2x1 - ${cocktailSeleccionado.name}`,
@@ -622,7 +499,7 @@ const SheetView = () => {
             const fechaFin = new Date();
             fechaFin.setDate(fechaFin.getDate() + 7);
 
-            await PromotionOperations.crearPromocionDescuentoPorcentaje(
+            await SimpleOperations.crearPromocionDescuentoPorcentaje(
               cocktailSeleccionado.db_id || cocktailSeleccionado.id,
               parseFloat(porcentaje),
               {
@@ -654,14 +531,11 @@ const SheetView = () => {
       [id]: usarPrecio2,
     }));
   };
-  const total = cart.reduce((sum, item) => {
-    const key = `${item.id}-${item.price}`;
-    return sum + item.price * (cantidades[key] || 0);
-  }, 0);
+
   /* ====== ABRIR/VER CAJA ====== */
   const manejarCaja = () => {
     if (cajaAbierta) {
-      navigation.navigate('CajaScreen');
+      navigation.navigate('CajaVentas');
     } else {
       Alert.prompt(
         '💰 Abrir Caja',
@@ -669,10 +543,11 @@ const SheetView = () => {
         async (monto) => {
           if (monto && !isNaN(parseFloat(monto))) {
             try {
-              await CocktailOperations.abrirCajaDia(parseFloat(monto));
+              await SimpleOperations.abrirCajaDia(parseFloat(monto));
               setCajaAbierta(true);
               Alert.alert('✅ Éxito', `Caja abierta con $${parseFloat(monto).toLocaleString()}`);
             } catch (error) {
+              console.error('Error abriendo caja:', error);
               Alert.alert('❌ Error', 'No se pudo abrir la caja');
             }
           }
@@ -690,11 +565,8 @@ const SheetView = () => {
   ) ?? [];
 
   const renderItem = ({ item }) => {
-    const usaPrecio2 = usandoPrecio2[item.id] || false;
-
-    const precioFinal = usaPrecio2 && item.precio2
-      ? item.precio2
-      : item.precio1 ?? 0;
+    const usaPrecio2 = precioSeleccionado[item.id] || false;
+    const precioFinal = usaPrecio2 && item.precio2 ? item.precio2 : item.precio1 || 3500;
 
     return (
       <View style={styles.itemContainer}>
@@ -709,27 +581,29 @@ const SheetView = () => {
           }
         />
 
-
         {/* BOTÓN AGREGAR */}
         <TouchableOpacity
           style={styles.addBtn}
           onPress={() =>
             agregarAlCarrito({
               ...item,
-              price: precioFinal,   // 🔥 SE GUARDA EL PRECIO ELEGIDO
+              price: precioFinal,
               usaPrecio2,
-            })
+            }, precioFinal)
           }
         >
-          <Text>
+          <Text style={styles.addBtnText}>
             ${Number(precioFinal || 0).toLocaleString()}
           </Text>
-
         </TouchableOpacity>
       </View>
     );
   };
 
+  const total = cart.reduce((sum, item) => {
+    const key = `${item.id}-${item.price}`;
+    return sum + item.price * (cantidades[key] || 0);
+  }, 0);
 
   if (loading) {
     return (
@@ -784,7 +658,7 @@ const SheetView = () => {
                 style={styles.promoTag}
                 onPress={() => Alert.alert(
                   promo.nombre,
-                  `Tipo: ${promo.tipo}\nVálido hasta: ${new Date(promo.fecha_fin).toLocaleDateString()}`
+                  `Tipo: ${promo.tipo}\nVálido hasta: ${promo.fecha_fin ? new Date(promo.fecha_fin).toLocaleDateString() : 'Sin fecha límite'}`
                 )}
               >
                 <Text style={styles.promoTagText} numberOfLines={1}>
@@ -812,23 +686,26 @@ const SheetView = () => {
         }
       />
 
-      {/* CARRITO MEJORADO */}
+      {/* CARRITO */}
       {cart.length > 0 && (
         <View style={styles.cart}>
-          <ScrollView horizontal>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {cart.map((item) => {
               const key = `${item.id}-${item.price}`;
+              const cantidad = cantidades[key] || 0;
+              if (cantidad === 0) return null;
+
               return (
                 <View key={key} style={styles.cartItem}>
                   <Image source={item.imageKey} style={styles.cartImage} />
-
-                  <View style={{ flex: 1 }}>
-                    <Text numberOfLines={1}>{item.name}</Text>
-                    <Text>
-                      ${item.price.toLocaleString()} x {cantidades[key]}
+                  <View style={styles.cartItemInfo}>
+                    <Text style={styles.cartItemName} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                    <Text style={styles.cartItemPrice}>
+                      ${item.price.toLocaleString()} x {cantidad}
                     </Text>
                   </View>
-
                   <TouchableOpacity
                     style={styles.removeBtn}
                     onPress={() => quitarDelCarrito(item)}
@@ -836,7 +713,6 @@ const SheetView = () => {
                     <Text style={styles.removeBtnText}>✕</Text>
                   </TouchableOpacity>
                 </View>
-
               );
             })}
           </ScrollView>
@@ -844,19 +720,19 @@ const SheetView = () => {
           <Text style={styles.total}>
             TOTAL: ${total.toLocaleString("es-AR")}
           </Text>
-          // En el JSX, cambia el botón de finalizar venta:
+          
           <TouchableOpacity
             style={styles.checkoutBtn}
-            onPress={abrirCheckout}  // ← Cambiado de finalizarVenta a abrirCheckout
+            onPress={abrirCheckout}
           >
             <Text style={styles.checkoutText}>FINALIZAR VENTA</Text>
             <Text style={styles.checkoutSubtext}>
               {Object.values(cantidades).reduce((a, b) => a + b, 0)} items
             </Text>
           </TouchableOpacity>
-
         </View>
       )}
+
       {/* MODAL DE OPCIONES DE PROMOCIÓN */}
       <Modal
         visible={modalVisible}
@@ -882,10 +758,10 @@ const SheetView = () => {
                 <Text style={styles.promoOptionBadge}>POPULAR</Text>
               </View>
               <Text style={styles.promoOptionDesc}>
-                Precio normal: ${PRECIO_BASE * 2} → Promo: $3000
+                Precio normal: ${(cocktailSeleccionado?.precio1 || 3500) * 2} → Promo: $3000
               </Text>
               <Text style={styles.promoOptionAhorro}>
-                Ahorro: ${(PRECIO_BASE * 2 - 3000).toLocaleString()} (${((PRECIO_BASE * 2 - 3000) / 2).toFixed(0)} c/u)
+                Ahorro: ${((cocktailSeleccionado?.precio1 || 3500) * 2 - 3000).toLocaleString()} (${(((cocktailSeleccionado?.precio1 || 3500) * 2 - 3000) / 2).toFixed(0)} c/u)
               </Text>
             </TouchableOpacity>
 
@@ -901,7 +777,7 @@ const SheetView = () => {
                 Llevá 2 cócteles y pagá solo 1
               </Text>
               <Text style={styles.promoOptionAhorro}>
-                Ahorro: ${PRECIO_BASE.toLocaleString()} por cada par
+                Ahorro: ${(cocktailSeleccionado?.precio1 || 3500).toLocaleString()} por cada par
               </Text>
             </TouchableOpacity>
 
@@ -914,7 +790,7 @@ const SheetView = () => {
                 <Text style={styles.promoOptionBadge}>FLEXIBLE</Text>
               </View>
               <Text style={styles.promoOptionDesc}>
-                Ejemplo: 20% de descuento = ${(PRECIO_BASE * 0.2).toFixed(0)} OFF
+                Ejemplo: 20% de descuento = ${((cocktailSeleccionado?.precio1 || 3500) * 0.2).toFixed(0)} OFF
               </Text>
               <Text style={styles.promoOptionAhorro}>
                 Aplica para cualquier cantidad
@@ -930,6 +806,7 @@ const SheetView = () => {
           </View>
         </View>
       </Modal>
+
       {/* MODAL DE CHECKOUT */}
       <Modal
         visible={showCheckout}
@@ -1180,58 +1057,33 @@ const styles = StyleSheet.create({
     margin: CARD_MARGIN,
     alignItems: 'center',
   },
-  cantidadContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginTop: -15,
-    zIndex: 1,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  cantidadBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  addBtn: {
     backgroundColor: '#2196F3',
-    justifyContent: 'center',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginTop: 10,
     alignItems: 'center',
+    minWidth: 150,
   },
-  cantidadBtnText: {
+  addBtnText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  cantidadText: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginHorizontal: 15,
-    color: '#333',
-    minWidth: 20,
-    textAlign: 'center',
   },
-  promoBtn: {
+  preciosButton: {
     backgroundColor: '#9C27B0',
     paddingHorizontal: 15,
-    paddingVertical: 6,
-    borderRadius: 15,
-    marginTop: 5,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 10,
   },
-  promoBtnActive: {
-    backgroundColor: '#FF5722',
-  },
-  promoBtnText: {
+  preciosButtonText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
   },
-  cartContainer: {
+  cart: {
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -1239,39 +1091,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopWidth: 2,
     borderTopColor: '#2196F3',
-    paddingBottom: 10,
-    zIndex: 1000,
+    padding: 15,
     elevation: 20,
-  },
-  cartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  cartTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  cartTotal: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2196F3',
-  },
-  cartItemsScroll: {
-    maxHeight: 80,
   },
   cartItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f9f9f9',
     borderRadius: 10,
-    padding: 8,
-    marginHorizontal: 8,
+    padding: 10,
+    marginHorizontal: 5,
     marginVertical: 5,
     minWidth: 200,
   },
@@ -1281,10 +1110,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 10,
   },
-  cartImageConPromo: {
-    borderWidth: 2,
-    borderColor: '#FF9800',
-  },
   cartItemInfo: {
     flex: 1,
   },
@@ -1292,17 +1117,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 2,
   },
   cartItemPrice: {
     fontSize: 12,
     color: '#666',
-  },
-  cartItemPromo: {
-    fontSize: 10,
-    color: '#FF9800',
-    fontWeight: 'bold',
-    marginTop: 2,
   },
   removeBtn: {
     width: 24,
@@ -1318,10 +1136,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  total: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2196F3',
+    textAlign: 'center',
+    marginVertical: 10,
+  },
   checkoutBtn: {
     backgroundColor: '#4CAF50',
-    marginHorizontal: 15,
-    marginTop: 10,
     paddingVertical: 15,
     borderRadius: 10,
     alignItems: 'center',
@@ -1421,129 +1244,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    preciosButton: {
-      backgroundColor: '#9C27B0',
-      paddingHorizontal: 15,
-      paddingVertical: 8,
-      borderRadius: 20,
-      marginLeft: 10,
-    },
-    preciosButtonText: {
-      color: '#fff',
-      fontSize: 14,
-      fontWeight: 'bold',
-    },
-
-  },
-  /* ===== CARRITO ===== */
-  cartContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    borderTopWidth: 2,
-    borderTopColor: '#2196F3',
-    paddingBottom: 10,
-    elevation: 20,
-  },
-
-  cartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-
-  cartTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-
-  cartTotal: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2196F3',
-  },
-
-  cartItemsScroll: {
-    maxHeight: 80,
-  },
-
-  cartItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 8,
-    marginHorizontal: 8,
-    marginVertical: 5,
-    minWidth: 200,
-  },
-
-  cartImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-
-  cartItemInfo: {
-    flex: 1,
-  },
-
-  cartItemName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-
-  cartItemPrice: {
-    fontSize: 12,
-    color: '#666',
-  },
-
-  removeBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#ff4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-
-  removeBtnText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-
-  /* ===== FINALIZAR ===== */
-  checkoutBtn: {
-    backgroundColor: '#4CAF50',
-    marginHorizontal: 15,
-    marginTop: 10,
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-
-  checkoutText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-
-  checkoutSubtext: {
-    color: '#fff',
-    fontSize: 12,
-    opacity: 0.9,
-    marginTop: 2,
   },
   /* ====== ESTILOS DE CHECKOUT ====== */
   checkoutOverlay: {

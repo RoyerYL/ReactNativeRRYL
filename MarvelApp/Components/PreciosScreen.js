@@ -17,7 +17,6 @@ import {
     StatusBar,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import SimpleDatabase from './simpleDatabase';
 import SimpleOperations from './simpleOperations';
 
 const PreciosScreen = () => {
@@ -27,10 +26,13 @@ const PreciosScreen = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
     const [cocktailEditando, setCocktailEditando] = useState(null);
-    const [nuevoPrecio, setNuevoPrecio] = useState('');
+    const [nuevoPrecio1, setNuevoPrecio1] = useState('');
+    const [nuevoPrecio2, setNuevoPrecio2] = useState('');
     const [ajustePorcentaje, setAjustePorcentaje] = useState('');
     const [editandoMasivamente, setEditandoMasivamente] = useState(false);
-    const [precioMasivo, setPrecioMasivo] = useState('');
+    const [precioMasivo1, setPrecioMasivo1] = useState('');
+    const [precioMasivo2, setPrecioMasivo2] = useState('');
+    const [tipoPrecioMasivo, setTipoPrecioMasivo] = useState('ambos');
 
     useEffect(() => {
         cargarCocktails();
@@ -67,41 +69,70 @@ const PreciosScreen = () => {
 
     const abrirModalEdicion = (cocktail) => {
         setCocktailEditando(cocktail);
-        setNuevoPrecio(cocktail.precio?.toString() || '');
+        setNuevoPrecio1(cocktail.precio1?.toString() || '');
+        setNuevoPrecio2(cocktail.precio2?.toString() || '');
         setModalVisible(true);
     };
 
-    const actualizarPrecio = async () => {
-        if (!nuevoPrecio || isNaN(parseFloat(nuevoPrecio)) || parseFloat(nuevoPrecio) <= 0) {
-            Alert.alert('Error', 'Ingrese un precio válido');
+    const actualizarPrecios = async () => {
+        if ((!nuevoPrecio1 || isNaN(parseFloat(nuevoPrecio1)) || parseFloat(nuevoPrecio1) <= 0) &&
+            (!nuevoPrecio2 || isNaN(parseFloat(nuevoPrecio2)) || parseFloat(nuevoPrecio2) <= 0)) {
+            Alert.alert('Error', 'Ingrese al menos un precio válido');
             return;
         }
 
         try {
-            const precioNum = parseFloat(nuevoPrecio);
-            const success = await SimpleDatabase.updateCocktail(cocktailEditando.id, {
-                precio: precioNum
-            });
+            const updates = {};
+            let cambios = [];
 
-            if (success) {
-                // Actualizar estado local
-                setCocktails(prev =>
-                    prev.map(c =>
-                        c.id === cocktailEditando.id
-                            ? { ...c, precio: precioNum }
-                            : c
-                    )
+            // Actualizar precio1 si es válido y cambió
+            if (nuevoPrecio1 && !isNaN(parseFloat(nuevoPrecio1)) && parseFloat(nuevoPrecio1) > 0) {
+                const precioNum = parseFloat(nuevoPrecio1);
+                if (precioNum !== cocktailEditando.precio1) {
+                    updates.precio1 = precioNum;
+                    cambios.push(`Precio 1: $${precioNum.toLocaleString()}`);
+                }
+            }
+
+            // Actualizar precio2 si es válido y cambió
+            if (nuevoPrecio2 && !isNaN(parseFloat(nuevoPrecio2)) && parseFloat(nuevoPrecio2) > 0) {
+                const precioNum = parseFloat(nuevoPrecio2);
+                if (precioNum !== cocktailEditando.precio2) {
+                    updates.precio2 = precioNum;
+                    cambios.push(`Precio 2: $${precioNum.toLocaleString()}`);
+                }
+            }
+
+            // Si hay cambios, actualizar
+            if (Object.keys(updates).length > 0) {
+                const success = await SimpleOperations.actualizarPreciosCocktail(
+                    cocktailEditando.id,
+                    updates
                 );
 
-                Alert.alert('✅ Éxito', `Precio de "${cocktailEditando.nombre}" actualizado a $${precioNum.toLocaleString()}`);
-                setModalVisible(false);
-                setCocktailEditando(null);
-                setNuevoPrecio('');
+                if (success) {
+                    // Actualizar estado local
+                    setCocktails(prev =>
+                        prev.map(c =>
+                            c.id === cocktailEditando.id
+                                ? { ...c, ...updates }
+                                : c
+                        )
+                    );
+
+                    Alert.alert('✅ Éxito', `"${cocktailEditando.nombre}" actualizado:\n${cambios.join('\n')}`);
+                    setModalVisible(false);
+                    setCocktailEditando(null);
+                    setNuevoPrecio1('');
+                    setNuevoPrecio2('');
+                } else {
+                    Alert.alert('❌ Error', 'No se pudieron actualizar los precios');
+                }
             } else {
-                Alert.alert('❌ Error', 'No se pudo actualizar el precio');
+                Alert.alert('Info', 'No hay cambios para guardar');
             }
         } catch (error) {
-            console.error('Error actualizando precio:', error);
+            console.error('Error actualizando precios:', error);
             Alert.alert('❌ Error', 'Hubo un problema al actualizar');
         }
     };
@@ -120,52 +151,95 @@ const PreciosScreen = () => {
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
-                    text: 'Aplicar',
+                    text: 'Solo Precio 1',
+                    onPress: () => aplicarAjustePorcentajeConTipo('precio1', porcentaje)
+                },
+                {
+                    text: 'Solo Precio 2',
+                    onPress: () => aplicarAjustePorcentajeConTipo('precio2', porcentaje)
+                },
+                {
+                    text: 'Ambos Precios',
                     style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            setLoading(true);
-                            const factor = 1 + (porcentaje / 100);
-
-                            // Actualizar cada cóctel en la base de datos
-                            for (const cocktail of cocktails) {
-                                const nuevoPrecio = Math.round(cocktail.precio * factor);
-                                await SimpleDatabase.updateCocktail(cocktail.id, {
-                                    precio: nuevoPrecio
-                                });
-                            }
-
-                            // Recargar datos
-                            await cargarCocktails();
-
-                            Alert.alert(
-                                '✅ Éxito',
-                                `Se actualizaron ${cocktails.length} cócteles.\n${porcentaje > 0 ? 'Aumento' : 'Disminución'} del ${Math.abs(porcentaje)}% aplicado.`
-                            );
-                            setAjustePorcentaje('');
-                        } catch (error) {
-                            console.error('Error en ajuste masivo:', error);
-                            Alert.alert('❌ Error', 'No se pudieron actualizar todos los precios');
-                        } finally {
-                            setLoading(false);
-                        }
-                    }
+                    onPress: () => aplicarAjustePorcentajeConTipo('ambos', porcentaje)
                 }
             ]
         );
     };
 
+    const aplicarAjustePorcentajeConTipo = async (tipo, porcentaje) => {
+        try {
+            setLoading(true);
+            const factor = 1 + (porcentaje / 100);
+            let actualizados = 0;
+
+            for (const cocktail of cocktails) {
+                const updates = {};
+                let tieneCambios = false;
+
+                if (tipo === 'precio1' || tipo === 'ambos') {
+                    const nuevoPrecio1 = Math.round(cocktail.precio1 * factor);
+                    if (nuevoPrecio1 !== cocktail.precio1) {
+                        updates.precio1 = nuevoPrecio1;
+                        tieneCambios = true;
+                    }
+                }
+
+                if (tipo === 'precio2' || tipo === 'ambos') {
+                    // Si no tiene precio2, usar precio1 como base
+                    const precioBase = cocktail.precio2 || cocktail.precio1;
+                    const nuevoPrecio2 = Math.round(precioBase * factor);
+                    if (nuevoPrecio2 !== cocktail.precio2) {
+                        updates.precio2 = nuevoPrecio2;
+                        tieneCambios = true;
+                    }
+                }
+
+                if (tieneCambios) {
+                    await SimpleOperations.actualizarPreciosCocktail(cocktail.id, updates);
+                    actualizados++;
+                }
+            }
+
+            // Recargar datos
+            await cargarCocktails();
+
+            Alert.alert(
+                '✅ Éxito',
+                `Se actualizaron ${actualizados} cócteles.\n${porcentaje > 0 ? 'Aumento' : 'Disminución'} del ${Math.abs(porcentaje)}% aplicado al ${tipo === 'ambos' ? 'precio 1 y 2' : tipo === 'precio1' ? 'precio 1' : 'precio 2'}.`
+            );
+            setAjustePorcentaje('');
+        } catch (error) {
+            console.error('Error en ajuste masivo:', error);
+            Alert.alert('❌ Error', 'No se pudieron actualizar todos los precios');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const aplicarPrecioMasivo = () => {
-        if (!precioMasivo || isNaN(parseFloat(precioMasivo)) || parseFloat(precioMasivo) <= 0) {
-            Alert.alert('Error', 'Ingrese un precio válido');
-            return;
+        let precio1 = null;
+        let precio2 = null;
+
+        if (tipoPrecioMasivo === 'precio1' || tipoPrecioMasivo === 'ambos') {
+            if (!precioMasivo1 || isNaN(parseFloat(precioMasivo1)) || parseFloat(precioMasivo1) <= 0) {
+                Alert.alert('Error', 'Ingrese un precio 1 válido');
+                return;
+            }
+            precio1 = parseFloat(precioMasivo1);
         }
 
-        const precio = parseFloat(precioMasivo);
+        if (tipoPrecioMasivo === 'precio2' || tipoPrecioMasivo === 'ambos') {
+            if (!precioMasivo2 || isNaN(parseFloat(precioMasivo2)) || parseFloat(precioMasivo2) <= 0) {
+                Alert.alert('Error', 'Ingrese un precio 2 válido');
+                return;
+            }
+            precio2 = parseFloat(precioMasivo2);
+        }
 
         Alert.alert(
             '⚠️ Precio Masivo',
-            `¿Aplicar precio de $${precio.toLocaleString()} a TODOS los cócteles?\n\nEsta acción afectará a ${cocktails.length} productos.`,
+            `¿Aplicar precios a TODOS los cócteles?\n\n${tipoPrecioMasivo === 'ambos' ? `Precio 1: $${precio1.toLocaleString()}\nPrecio 2: $${precio2.toLocaleString()}` : tipoPrecioMasivo === 'precio1' ? `Precio 1: $${precio1.toLocaleString()}` : `Precio 2: $${precio2.toLocaleString()}`}\n\nEsta acción afectará a ${cocktails.length} productos.`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
@@ -174,16 +248,27 @@ const PreciosScreen = () => {
                     onPress: async () => {
                         try {
                             setLoading(true);
+                            let actualizados = 0;
 
                             for (const cocktail of cocktails) {
-                                await SimpleDatabase.updateCocktail(cocktail.id, {
-                                    precio: precio
-                                });
+                                const updates = {};
+
+                                if (precio1 !== null) {
+                                    updates.precio1 = precio1;
+                                }
+
+                                if (precio2 !== null) {
+                                    updates.precio2 = precio2;
+                                }
+
+                                await SimpleOperations.actualizarPreciosCocktail(cocktail.id, updates);
+                                actualizados++;
                             }
 
                             await cargarCocktails();
-                            Alert.alert('✅ Éxito', `Todos los cócteles actualizados a $${precio.toLocaleString()}`);
-                            setPrecioMasivo('');
+                            Alert.alert('✅ Éxito', `${actualizados} cócteles actualizados`);
+                            setPrecioMasivo1('');
+                            setPrecioMasivo2('');
                             setEditandoMasivamente(false);
                         } catch (error) {
                             console.error('Error en precio masivo:', error);
@@ -195,39 +280,50 @@ const PreciosScreen = () => {
                 },
                 {
                     text: 'Aplicar por Categoría',
-                    onPress: () => mostrarOpcionesCategorias(precio)
+                    onPress: () => mostrarOpcionesCategorias(precio1, precio2)
                 }
             ]
         );
     };
 
-    const mostrarOpcionesCategorias = (precio) => {
+    const mostrarOpcionesCategorias = (precio1, precio2) => {
         const categorias = [...new Set(cocktails.map(c => c.categoria))];
 
         Alert.alert(
             'Aplicar por Categoría',
-            `Seleccione la categoría para aplicar $${precio.toLocaleString()}:`,
+            `Seleccione la categoría:`,
             categorias.map(cat => ({
                 text: cat.charAt(0).toUpperCase() + cat.slice(1),
-                onPress: () => aplicarPrecioPorCategoria(cat, precio)
+                onPress: () => aplicarPrecioPorCategoria(cat, precio1, precio2)
             })).concat([{ text: 'Cancelar', style: 'cancel' }])
         );
     };
 
-    const aplicarPrecioPorCategoria = async (categoria, precio) => {
+    const aplicarPrecioPorCategoria = async (categoria, precio1, precio2) => {
         try {
             setLoading(true);
             const cocktailsCategoria = cocktails.filter(c => c.categoria === categoria);
+            let actualizados = 0;
 
             for (const cocktail of cocktailsCategoria) {
-                await SimpleDatabase.updateCocktail(cocktail.id, {
-                    precio: precio
-                });
+                const updates = {};
+
+                if (precio1 !== null) {
+                    updates.precio1 = precio1;
+                }
+
+                if (precio2 !== null) {
+                    updates.precio2 = precio2;
+                }
+
+                await SimpleOperations.actualizarPreciosCocktail(cocktail.id, updates);
+                actualizados++;
             }
 
             await cargarCocktails();
-            Alert.alert('✅ Éxito', `${cocktailsCategoria.length} cócteles de "${categoria}" actualizados a $${precio.toLocaleString()}`);
-            setPrecioMasivo('');
+            Alert.alert('✅ Éxito', `${actualizados} cócteles de "${categoria}" actualizados`);
+            setPrecioMasivo1('');
+            setPrecioMasivo2('');
             setEditandoMasivamente(false);
         } catch (error) {
             console.error('Error:', error);
@@ -235,6 +331,58 @@ const PreciosScreen = () => {
         } finally {
             setLoading(false);
         }
+    };
+
+    const copiarPrecio1aPrecio2 = async () => {
+        Alert.alert(
+            '⚠️ Copiar Precios',
+            '¿Copiar precio 1 al precio 2 para TODOS los cócteles?',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Copiar',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setLoading(true);
+                            const actualizados = await SimpleOperations.copiarPrecio1aPrecio2();
+                            await cargarCocktails();
+                            Alert.alert('✅ Éxito', `Precio 2 actualizado en ${actualizados} cócteles`);
+                        } catch (error) {
+                            console.error('Error copiando precios:', error);
+                            Alert.alert('❌ Error', 'No se pudieron copiar los precios');
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const aplicarPorcentajePrecio2 = async () => {
+        Alert.prompt(
+            '📊 Porcentaje Precio 2',
+            'Ingrese el % para calcular Precio 2 en base al Precio 1:\n(Ej: 20 para +20%, -10 para -10%)',
+            async (porcentaje) => {
+                if (porcentaje && !isNaN(parseFloat(porcentaje))) {
+                    try {
+                        setLoading(true);
+                        const resultado = await SimpleOperations.aplicarPorcentajePrecio2(parseFloat(porcentaje));
+                        await cargarCocktails();
+                        Alert.alert('✅ Éxito', resultado.mensaje);
+                    } catch (error) {
+                        console.error('Error aplicando porcentaje:', error);
+                        Alert.alert('❌ Error', 'No se pudo aplicar el porcentaje');
+                    } finally {
+                        setLoading(false);
+                    }
+                }
+            },
+            'plain-text',
+            '',
+            'numeric'
+        );
     };
 
     const renderCocktailItem = ({ item }) => (
@@ -252,11 +400,25 @@ const PreciosScreen = () => {
                 </Text>
             </View>
 
-            <View style={styles.priceSection}>
-                <Text style={styles.currentPrice}>
-                    ${item.precio?.toLocaleString() || '0'}
-                </Text>
-                <Text style={styles.editHint}>Tocar para editar</Text>
+            <View style={styles.pricesSection}>
+                {/* Precio 1 */}
+                <View style={styles.priceDisplay}>
+                    <Text style={styles.priceLabel}>P1:</Text>
+                    <Text style={styles.priceValue}>
+                        ${item.precio1?.toLocaleString() || '0'}
+                    </Text>
+                </View>
+
+                {/* Precio 2 */}
+                <View style={styles.priceDisplay}>
+                    <Text style={styles.priceLabel}>P2:</Text>
+                    <Text style={[
+                        styles.priceValue,
+                        !item.precio2 && styles.priceValueDisabled
+                    ]}>
+                        ${item.precio2?.toLocaleString() || item.precio1?.toLocaleString() || '0'}
+                    </Text>
+                </View>
             </View>
 
             <View style={styles.editIcon}>
@@ -265,64 +427,52 @@ const PreciosScreen = () => {
         </TouchableOpacity>
     );
 
-    const renderCategoriaSection = (categoria, items) => (
-        <View key={categoria} style={styles.categoriaSection}>
-            <View style={styles.categoriaHeader}>
-                <Text style={styles.categoriaTitle}>
-                    {categoria.charAt(0).toUpperCase() + categoria.slice(1)}
-                </Text>
-                <Text style={styles.categoriaCount}>
-                    {items.length} productos
-                </Text>
-            </View>
+    const renderCategoriaSection = (categoria, items) => {
+        const precioPromedio1 = Math.round(items.reduce((sum, c) => sum + (c.precio1 || 0), 0) / items.length);
+        const precioPromedio2 = Math.round(items.reduce((sum, c) => sum + (c.precio2 || c.precio1 || 0), 0) / items.length);
+        const diferenciaPromedio = precioPromedio2 - precioPromedio1;
+        const porcentajeDiferencia = precioPromedio1 > 0 ? ((diferenciaPromedio / precioPromedio1) * 100).toFixed(1) : 0;
 
-            <FlatList
-                data={items}
-                renderItem={renderCocktailItem}
-                keyExtractor={item => item.id.toString()}
-                scrollEnabled={false}
-                ItemSeparatorComponent={() => <View style={styles.separator} />}
-            />
+        return (
+            <View key={categoria} style={styles.categoriaSection}>
+                <View style={styles.categoriaHeader}>
+                    <Text style={styles.categoriaTitle}>
+                        {categoria.charAt(0).toUpperCase() + categoria.slice(1)}
+                    </Text>
+                    <Text style={styles.categoriaCount}>
+                        {items.length} productos
+                    </Text>
+                </View>
 
-            <View style={styles.categoriaSummary}>
-                <Text style={styles.summaryText}>
-                    Precio promedio: ${Math.round(items.reduce((sum, c) => sum + (c.precio || 0), 0) / items.length).toLocaleString()}
-                </Text>
-                <TouchableOpacity
-                    style={styles.bulkEditButton}
-                    onPress={() => {
-                        Alert.prompt(
-                            `Editar ${categoria}`,
-                            `Nuevo precio para todos los ${items.length} cócteles de ${categoria}:`,
-                            async (precio) => {
-                                if (precio && !isNaN(parseFloat(precio)) && parseFloat(precio) > 0) {
-                                    try {
-                                        setLoading(true);
-                                        for (const cocktail of items) {
-                                            await SimpleDatabase.updateCocktail(cocktail.id, {
-                                                precio: parseFloat(precio)
-                                            });
-                                        }
-                                        await cargarCocktails();
-                                        Alert.alert('✅ Éxito', `${items.length} cócteles actualizados`);
-                                    } catch (error) {
-                                        Alert.alert('❌ Error', 'No se pudieron actualizar');
-                                    } finally {
-                                        setLoading(false);
-                                    }
-                                }
-                            },
-                            'plain-text',
-                            '',
-                            'numeric'
-                        );
-                    }}
-                >
-                    <Text style={styles.bulkEditText}>Editar Todos</Text>
-                </TouchableOpacity>
+                <FlatList
+                    data={items}
+                    renderItem={renderCocktailItem}
+                    keyExtractor={item => item.id.toString()}
+                    scrollEnabled={false}
+                    ItemSeparatorComponent={() => <View style={styles.separator} />}
+                />
+
+                <View style={styles.categoriaSummary}>
+                    <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Prom. P1:</Text>
+                        <Text style={styles.summaryValue}>${precioPromedio1.toLocaleString()}</Text>
+                        <Text style={styles.summaryLabel}>Prom. P2:</Text>
+                        <Text style={styles.summaryValue}>${precioPromedio2.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.summaryRow}>
+                        <Text style={styles.summaryLabel}>Diferencia:</Text>
+                        <Text style={[
+                            styles.summaryValue,
+                            diferenciaPromedio > 0 ? styles.diferenciaPositiva : 
+                            diferenciaPromedio < 0 ? styles.diferenciaNegativa : styles.diferenciaNeutral
+                        ]}>
+                            {diferenciaPromedio > 0 ? '+' : ''}{diferenciaPromedio.toLocaleString()} ({porcentajeDiferencia}%)
+                        </Text>
+                    </View>
+                </View>
             </View>
-        </View>
-    );
+        );
+    };
 
     if (loading && cocktails.length === 0) {
         return (
@@ -346,16 +496,9 @@ const PreciosScreen = () => {
                     <Text style={styles.backButtonText}>← Volver</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.headerTitle}>Administrar Precios</Text>
+                <Text style={styles.headerTitle}>Gestión de Precios</Text>
 
                 <View style={styles.headerRight}>
-                    <TouchableOpacity
-                        style={styles.finanzasButton}
-                        onPress={() => navigation.navigate('CajaVentas')}
-                    >
-                        <Text style={styles.finanzasButtonText}>💰</Text>
-                    </TouchableOpacity>
-
                     <TouchableOpacity
                         style={styles.reloadButton}
                         onPress={cargarCocktails}
@@ -386,6 +529,25 @@ const PreciosScreen = () => {
                         )}
                     </View>
 
+                    {/* Acciones Rápidas */}
+                    <View style={styles.quickActionsContainer}>
+                        <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
+                        <View style={styles.quickActions}>
+                            <TouchableOpacity
+                                style={styles.quickActionButton}
+                                onPress={copiarPrecio1aPrecio2}
+                            >
+                                <Text style={styles.quickActionText}>📋 Copiar P1→P2</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.quickActionButton}
+                                onPress={aplicarPorcentajePrecio2}
+                            >
+                                <Text style={styles.quickActionText}>📊 % P2</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
                     {/* Ajustes Masivos */}
                     <View style={styles.massActions}>
                         <Text style={styles.sectionTitle}>Ajustes Masivos</Text>
@@ -394,7 +556,7 @@ const PreciosScreen = () => {
                         <View style={styles.actionCard}>
                             <Text style={styles.actionTitle}>Ajuste Porcentual</Text>
                             <Text style={styles.actionDescription}>
-                                Aumentar o disminuir todos los precios en un porcentaje
+                                Aumentar o disminuir precios en un porcentaje
                             </Text>
                             <View style={styles.actionInputRow}>
                                 <TextInput
@@ -421,9 +583,9 @@ const PreciosScreen = () => {
 
                         {/* Precio fijo masivo */}
                         <View style={styles.actionCard}>
-                            <Text style={styles.actionTitle}>Precio Fijo</Text>
+                            <Text style={styles.actionTitle}>Precio Fijo Masivo</Text>
                             <Text style={styles.actionDescription}>
-                                Establecer el mismo precio para todos los cócteles
+                                Establecer precios fijos para todos los cócteles
                             </Text>
 
                             {!editandoMasivamente ? (
@@ -435,21 +597,80 @@ const PreciosScreen = () => {
                                 </TouchableOpacity>
                             ) : (
                                 <View style={styles.massEditContainer}>
-                                    <TextInput
-                                        style={styles.massPriceInput}
-                                        placeholder="Precio para todos"
-                                        value={precioMasivo}
-                                        onChangeText={setPrecioMasivo}
-                                        keyboardType="numeric"
-                                        placeholderTextColor="#999"
-                                        autoFocus={true}
-                                    />
+                                    <View style={styles.tipoPrecioSelector}>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.tipoPrecioButton,
+                                                tipoPrecioMasivo === 'precio1' && styles.tipoPrecioButtonActive
+                                            ]}
+                                            onPress={() => setTipoPrecioMasivo('precio1')}
+                                        >
+                                            <Text style={[
+                                                styles.tipoPrecioButtonText,
+                                                tipoPrecioMasivo === 'precio1' && styles.tipoPrecioButtonTextActive
+                                            ]}>
+                                                Solo P1
+                                            </Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.tipoPrecioButton,
+                                                tipoPrecioMasivo === 'precio2' && styles.tipoPrecioButtonActive
+                                            ]}
+                                            onPress={() => setTipoPrecioMasivo('precio2')}
+                                        >
+                                            <Text style={[
+                                                styles.tipoPrecioButtonText,
+                                                tipoPrecioMasivo === 'precio2' && styles.tipoPrecioButtonTextActive
+                                            ]}>
+                                                Solo P2
+                                            </Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.tipoPrecioButton,
+                                                tipoPrecioMasivo === 'ambos' && styles.tipoPrecioButtonActive
+                                            ]}
+                                            onPress={() => setTipoPrecioMasivo('ambos')}
+                                        >
+                                            <Text style={[
+                                                styles.tipoPrecioButtonText,
+                                                tipoPrecioMasivo === 'ambos' && styles.tipoPrecioButtonTextActive
+                                            ]}>
+                                                Ambos
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    {(tipoPrecioMasivo === 'precio1' || tipoPrecioMasivo === 'ambos') && (
+                                        <TextInput
+                                            style={styles.massPriceInput}
+                                            placeholder="Precio 1 para todos"
+                                            value={precioMasivo1}
+                                            onChangeText={setPrecioMasivo1}
+                                            keyboardType="numeric"
+                                            placeholderTextColor="#999"
+                                        />
+                                    )}
+
+                                    {(tipoPrecioMasivo === 'precio2' || tipoPrecioMasivo === 'ambos') && (
+                                        <TextInput
+                                            style={styles.massPriceInput}
+                                            placeholder="Precio 2 para todos"
+                                            value={precioMasivo2}
+                                            onChangeText={setPrecioMasivo2}
+                                            keyboardType="numeric"
+                                            placeholderTextColor="#999"
+                                        />
+                                    )}
+
                                     <View style={styles.massEditButtons}>
                                         <TouchableOpacity
                                             style={[styles.massEditButton, styles.cancelMassButton]}
                                             onPress={() => {
                                                 setEditandoMasivamente(false);
-                                                setPrecioMasivo('');
+                                                setPrecioMasivo1('');
+                                                setPrecioMasivo2('');
                                             }}
                                         >
                                             <Text style={styles.cancelMassText}>Cancelar</Text>
@@ -458,10 +679,17 @@ const PreciosScreen = () => {
                                             style={[
                                                 styles.massEditButton,
                                                 styles.applyMassButton,
-                                                (!precioMasivo || isNaN(parseFloat(precioMasivo))) && styles.disabledButton
+                                                ((tipoPrecioMasivo === 'precio1' && (!precioMasivo1 || isNaN(parseFloat(precioMasivo1)))) ||
+                                                (tipoPrecioMasivo === 'precio2' && (!precioMasivo2 || isNaN(parseFloat(precioMasivo2)))) ||
+                                                (tipoPrecioMasivo === 'ambos' && (!precioMasivo1 || !precioMasivo2 || isNaN(parseFloat(precioMasivo1)) || isNaN(parseFloat(precioMasivo2))))) &&
+                                                styles.disabledButton
                                             ]}
                                             onPress={aplicarPrecioMasivo}
-                                            disabled={!precioMasivo || isNaN(parseFloat(precioMasivo))}
+                                            disabled={
+                                                (tipoPrecioMasivo === 'precio1' && (!precioMasivo1 || isNaN(parseFloat(precioMasivo1)))) ||
+                                                (tipoPrecioMasivo === 'precio2' && (!precioMasivo2 || isNaN(parseFloat(precioMasivo2)))) ||
+                                                (tipoPrecioMasivo === 'ambos' && (!precioMasivo1 || !precioMasivo2 || isNaN(parseFloat(precioMasivo1)) || isNaN(parseFloat(precioMasivo2))))
+                                            }
                                         >
                                             <Text style={styles.applyMassText}>Aplicar</Text>
                                         </TouchableOpacity>
@@ -478,7 +706,7 @@ const PreciosScreen = () => {
                                 Cócteles ({filteredCocktails.length})
                             </Text>
                             <Text style={styles.totalValue}>
-                                Valor total: ${filteredCocktails.reduce((sum, c) => sum + (c.precio || 0), 0).toLocaleString()}
+                                Precio 2 definido: {cocktails.filter(c => c.precio2 !== null && c.precio2 !== undefined).length}/{cocktails.length}
                             </Text>
                         </View>
 
@@ -497,7 +725,7 @@ const PreciosScreen = () => {
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* Modal de edición individual */}
+            {/* Modal de edición */}
             <Modal
                 visible={modalVisible}
                 animationType="slide"
@@ -514,21 +742,38 @@ const PreciosScreen = () => {
                             {cocktailEditando?.categoria}
                         </Text>
 
-                        <View style={styles.priceDisplay}>
+                        {/* Precio 1 */}
+                        <View style={styles.priceInputGroup}>
+                            <Text style={styles.priceInputLabel}>Precio 1</Text>
                             <Text style={styles.oldPrice}>
-                                Precio actual: ${cocktailEditando?.precio?.toLocaleString()}
+                                Actual: ${cocktailEditando?.precio1?.toLocaleString()}
                             </Text>
+                            <TextInput
+                                style={styles.modalInput}
+                                placeholder="Nuevo precio 1"
+                                value={nuevoPrecio1}
+                                onChangeText={setNuevoPrecio1}
+                                keyboardType="numeric"
+                                autoFocus={true}
+                                placeholderTextColor="#999"
+                            />
                         </View>
 
-                        <TextInput
-                            style={styles.modalInput}
-                            placeholder="Nuevo precio"
-                            value={nuevoPrecio}
-                            onChangeText={setNuevoPrecio}
-                            keyboardType="numeric"
-                            autoFocus={true}
-                            placeholderTextColor="#999"
-                        />
+                        {/* Precio 2 */}
+                        <View style={styles.priceInputGroup}>
+                            <Text style={styles.priceInputLabel}>Precio 2</Text>
+                            <Text style={styles.oldPrice}>
+                                Actual: ${cocktailEditando?.precio2?.toLocaleString() || cocktailEditando?.precio1?.toLocaleString() || 'No definido'}
+                            </Text>
+                            <TextInput
+                                style={styles.modalInput}
+                                placeholder="Nuevo precio 2"
+                                value={nuevoPrecio2}
+                                onChangeText={setNuevoPrecio2}
+                                keyboardType="numeric"
+                                placeholderTextColor="#999"
+                            />
+                        </View>
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
@@ -536,7 +781,8 @@ const PreciosScreen = () => {
                                 onPress={() => {
                                     setModalVisible(false);
                                     setCocktailEditando(null);
-                                    setNuevoPrecio('');
+                                    setNuevoPrecio1('');
+                                    setNuevoPrecio2('');
                                 }}
                             >
                                 <Text style={styles.modalCancelText}>Cancelar</Text>
@@ -544,7 +790,7 @@ const PreciosScreen = () => {
 
                             <TouchableOpacity
                                 style={[styles.modalButton, styles.modalSave]}
-                                onPress={actualizarPrecio}
+                                onPress={actualizarPrecios}
                             >
                                 <Text style={styles.modalSaveText}>Guardar</Text>
                             </TouchableOpacity>
@@ -631,6 +877,31 @@ const styles = StyleSheet.create({
         color: '#ff4444',
         marginLeft: 8,
     },
+    quickActionsContainer: {
+        paddingHorizontal: 16,
+        marginBottom: 16,
+    },
+    quickActions: {
+        flexDirection: 'row',
+    },
+    quickActionButton: {
+        flex: 1,
+        backgroundColor: '#fff',
+        padding: 12,
+        borderRadius: 8,
+        marginHorizontal: 4,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    quickActionText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#003b77',
+    },
     massActions: {
         paddingHorizontal: 16,
         marginBottom: 20,
@@ -713,6 +984,30 @@ const styles = StyleSheet.create({
     massEditContainer: {
         marginTop: 8,
     },
+    tipoPrecioSelector: {
+        flexDirection: 'row',
+        marginBottom: 12,
+    },
+    tipoPrecioButton: {
+        flex: 1,
+        backgroundColor: '#f0f0f0',
+        paddingVertical: 8,
+        paddingHorizontal: 4,
+        borderRadius: 6,
+        marginHorizontal: 2,
+        alignItems: 'center',
+    },
+    tipoPrecioButtonActive: {
+        backgroundColor: '#003b77',
+    },
+    tipoPrecioButtonText: {
+        fontSize: 12,
+        color: '#666',
+        fontWeight: 'bold',
+    },
+    tipoPrecioButtonTextActive: {
+        color: '#fff',
+    },
     massPriceInput: {
         height: 45,
         borderWidth: 2,
@@ -762,7 +1057,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     totalValue: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '600',
         color: '#28a745',
     },
@@ -820,19 +1115,28 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#666',
     },
-    priceSection: {
-        alignItems: 'flex-end',
+    pricesSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
         marginRight: 12,
     },
-    currentPrice: {
-        fontSize: 18,
+    priceDisplay: {
+        marginHorizontal: 8,
+        alignItems: 'center',
+    },
+    priceLabel: {
+        fontSize: 12,
+        color: '#666',
+        marginBottom: 2,
+    },
+    priceValue: {
+        fontSize: 14,
         fontWeight: 'bold',
         color: '#28a745',
     },
-    editHint: {
-        fontSize: 10,
+    priceValueDisabled: {
         color: '#999',
-        marginTop: 2,
+        fontStyle: 'italic',
     },
     editIcon: {
         width: 36,
@@ -852,29 +1156,34 @@ const styles = StyleSheet.create({
         marginHorizontal: 16,
     },
     categoriaSummary: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
         backgroundColor: '#f8f9fa',
         borderTopWidth: 1,
         borderTopColor: '#eee',
     },
-    summaryText: {
-        fontSize: 14,
+    summaryRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 4,
+    },
+    summaryLabel: {
+        fontSize: 12,
         color: '#666',
     },
-    bulkEditButton: {
-        backgroundColor: '#003b77',
-        paddingHorizontal: 16,
-        paddingVertical: 6,
-        borderRadius: 15,
-    },
-    bulkEditText: {
-        color: '#fff',
+    summaryValue: {
         fontSize: 12,
         fontWeight: 'bold',
+        color: '#333',
+    },
+    diferenciaPositiva: {
+        color: '#28a745',
+    },
+    diferenciaNegativa: {
+        color: '#dc3545',
+    },
+    diferenciaNeutral: {
+        color: '#666',
     },
     emptyState: {
         alignItems: 'center',
@@ -913,13 +1222,19 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: 20,
     },
-    priceDisplay: {
-        alignItems: 'center',
+    priceInputGroup: {
         marginBottom: 20,
     },
+    priceInputLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#003b77',
+        marginBottom: 4,
+    },
     oldPrice: {
-        fontSize: 18,
+        fontSize: 14,
         color: '#666',
+        marginBottom: 8,
     },
     modalInput: {
         backgroundColor: '#f9f9f9',
@@ -927,10 +1242,8 @@ const styles = StyleSheet.create({
         borderColor: '#003b77',
         borderRadius: 10,
         padding: 15,
-        fontSize: 18,
-        textAlign: 'center',
+        fontSize: 16,
         color: '#333',
-        marginBottom: 24,
     },
     modalButtons: {
         flexDirection: 'row',
@@ -964,20 +1277,6 @@ const styles = StyleSheet.create({
     headerRight: {
         flexDirection: 'row',
         alignItems: 'center',
-    },
-    finanzasButton: {
-        backgroundColor: '#4CAF50',
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 10,
-    },
-    finanzasButtonText: {
-        color: '#fff',
-        fontSize: 20,
-        fontWeight: 'bold',
     },
 });
 
