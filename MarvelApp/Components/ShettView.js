@@ -640,7 +640,7 @@ ${venta.detalles.map(item =>
 
         <TouchableOpacity
           style={[styles.cajaBtn, cajaAbierta ? styles.cajaAbierta : styles.cajaCerrada]}
-          onPress={manejarCaja}
+          onPress={() => navigation.navigate('CajaVentas')}
         >
           <Text style={styles.cajaBtnText}>
             {cajaAbierta ? '💰 Caja Abierta' : '🔒 Abrir Caja'}

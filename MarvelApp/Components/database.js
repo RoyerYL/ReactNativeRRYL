@@ -26,7 +26,7 @@ class CocktailDatabase {
   async createTables() {
     const queries = [
       // ============ TABLAS PRINCIPALES ============
-      
+
       // Tabla de insumos/ingredientes
       `CREATE TABLE IF NOT EXISTS insumos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,7 +73,7 @@ class CocktailDatabase {
       )`,
 
       // ============ TABLAS DE VENTAS ============
-      
+
       // Tabla de ventas principales
       `CREATE TABLE IF NOT EXISTS ventas_cocktails (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,7 +108,7 @@ class CocktailDatabase {
       )`,
 
       // ============ TABLAS DE PROMOCIONES ============
-      
+
       // Tabla de promociones
       `CREATE TABLE IF NOT EXISTS promociones (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,7 +158,7 @@ class CocktailDatabase {
       )`,
 
       // ============ TABLAS DE CAJA Y CONTROL ============
-      
+
       // Tabla de caja diaria
       `CREATE TABLE IF NOT EXISTS caja_diaria (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -208,7 +208,7 @@ class CocktailDatabase {
       )`,
 
       // ============ TABLAS DE CONTROL ============
-      
+
       // Tabla de empleados
       `CREATE TABLE IF NOT EXISTS empleados (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -275,10 +275,10 @@ class CocktailDatabase {
       for (const query of queries) {
         await this.db.executeSql(query);
       }
-      
+
       // Crear índices para mejor performance
       await this.createIndexes();
-      
+
       console.log('Todas las tablas creadas correctamente');
     } catch (error) {
       console.error('Error al crear tablas:', error);
@@ -291,38 +291,38 @@ class CocktailDatabase {
       // Índices para insumos
       `CREATE INDEX IF NOT EXISTS idx_insumos_categoria ON insumos(categoria)`,
       `CREATE INDEX IF NOT EXISTS idx_insumos_activo ON insumos(activo)`,
-      
+
       // Índices para cocktails
       `CREATE INDEX IF NOT EXISTS idx_cocktails_categoria ON cocktails(categoria)`,
       `CREATE INDEX IF NOT EXISTS idx_cocktails_precio ON cocktails(precio_venta)`,
       `CREATE INDEX IF NOT EXISTS idx_cocktails_activo ON cocktails(activo)`,
-      
+
       // Índices para recetas
       `CREATE INDEX IF NOT EXISTS idx_recetas_cocktail ON recetas(cocktail_id)`,
       `CREATE INDEX IF NOT EXISTS idx_recetas_insumo ON recetas(insumo_id)`,
-      
+
       // Índices para ventas
       `CREATE INDEX IF NOT EXISTS idx_ventas_fecha ON ventas_cocktails(fecha_hora)`,
       `CREATE INDEX IF NOT EXISTS idx_ventas_estado ON ventas_cocktails(estado)`,
       `CREATE INDEX IF NOT EXISTS idx_ventas_metodo_pago ON ventas_cocktails(metodo_pago)`,
-      
+
       // Índices para detalles de venta
       `CREATE INDEX IF NOT EXISTS idx_venta_detalles_venta ON venta_detalles(venta_id)`,
       `CREATE INDEX IF NOT EXISTS idx_venta_detalles_cocktail ON venta_detalles(cocktail_id)`,
-      
+
       // Índices para promociones
       `CREATE INDEX IF NOT EXISTS idx_promociones_tipo ON promociones(tipo)`,
       `CREATE INDEX IF NOT EXISTS idx_promociones_activo ON promociones(activo)`,
       `CREATE INDEX IF NOT EXISTS idx_promociones_fechas ON promociones(fecha_inicio, fecha_fin)`,
-      
+
       // Índices para caja
       `CREATE INDEX IF NOT EXISTS idx_caja_fecha ON caja_diaria(fecha)`,
       `CREATE INDEX IF NOT EXISTS idx_caja_estado ON caja_diaria(estado)`,
-      
+
       // Índices para compras
       `CREATE INDEX IF NOT EXISTS idx_compras_fecha ON compras_insumos(fecha)`,
       `CREATE INDEX IF NOT EXISTS idx_compras_insumo ON compras_insumos(insumo_id)`,
-      
+
       // Índices para gastos
       `CREATE INDEX IF NOT EXISTS idx_gastos_fecha ON gastos_operativos(fecha)`,
       `CREATE INDEX IF NOT EXISTS idx_gastos_categoria ON gastos_operativos(categoria)`
@@ -338,7 +338,7 @@ class CocktailDatabase {
     }
   }
 
-   async insertDatosEjemplo() {
+  async insertDatosEjemplo() {
     try {
       // Verificar si ya hay datos
       const check = await this.db.executeSql('SELECT COUNT(*) as count FROM cocktails');
@@ -362,7 +362,7 @@ class CocktailDatabase {
         ['Pitufo Azul', 'cremoso', 4000, 6, 'Cóctel azul y cremoso'],
         ['Cuba Libre', 'clasico', 3200, 3, 'Ron y refresco de cola'],
         ['Destornillador', 'citrico', 3300, 4, 'Vodka y jugo de naranja'],
-        ['Laguna Azul', 'tropical', 3900, 6, 'Cóctel azul refrescante']
+        ['Laguna Azul', 'tropical', 3900, 6, 'Cóctel azul refrescante'],
       ];
 
       for (const cocktail of cocktails) {
@@ -374,37 +374,37 @@ class CocktailDatabase {
       }
 
       console.log('Datos de ejemplo insertados correctamente');
-      
+
     } catch (error) {
       console.error('Error insertando datos de ejemplo:', error);
     }
   }
 
   // ===== MÉTODOS DE UTILIDAD =====
-  
+
   async backupDatabase() {
     try {
       const tables = ['cocktails', 'ventas_cocktails', 'promociones', 'caja_diaria', 'compras_insumos', 'gastos_operativos'];
       const backup = {};
-      
+
       for (const table of tables) {
         const result = await this.db.executeSql(`SELECT * FROM ${table}`);
         const rows = result[0].rows;
         const data = [];
-        
+
         for (let i = 0; i < rows.length; i++) {
           data.push(rows.item(i));
         }
-        
+
         backup[table] = data;
       }
-      
+
       const fecha = new Date().toISOString().replace(/[:.]/g, '-');
       return {
         fecha_backup: fecha,
         datos: backup
       };
-      
+
     } catch (error) {
       console.error('Error en backup:', error);
       throw error;
@@ -418,11 +418,11 @@ class CocktailDatabase {
         WHERE type='table' AND name NOT LIKE 'sqlite_%'
         ORDER BY name
       `;
-      
+
       const result = await this.db.executeSql(tablesQuery);
       const rows = result[0].rows;
       const tables = [];
-      
+
       for (let i = 0; i < rows.length; i++) {
         const tableName = rows.item(i).name;
         const countResult = await this.db.executeSql(`SELECT COUNT(*) as count FROM ${tableName}`);
@@ -431,13 +431,13 @@ class CocktailDatabase {
           registros: countResult[0].rows.item(0).count
         });
       }
-      
+
       return {
         nombre_bd: this.databaseName,
         fecha_consulta: new Date().toISOString(),
         tablas: tables
       };
-      
+
     } catch (error) {
       console.error('Error obteniendo info BD:', error);
       throw error;
@@ -450,28 +450,28 @@ class CocktailDatabase {
         SELECT name FROM sqlite_master 
         WHERE type='table' AND name NOT LIKE 'sqlite_%'
       `;
-      
+
       const result = await this.db.executeSql(tablesQuery);
       const rows = result[0].rows;
-      
+
       // Desactivar foreign keys temporalmente
       await this.db.executeSql('PRAGMA foreign_keys = OFF');
-      
+
       // Eliminar todas las tablas
       for (let i = 0; i < rows.length; i++) {
         const tableName = rows.item(i).name;
         await this.db.executeSql(`DROP TABLE IF EXISTS ${tableName}`);
       }
-      
+
       // Reactivar foreign keys
       await this.db.executeSql('PRAGMA foreign_keys = ON');
-      
+
       // Volver a crear las tablas
       await this.createTables();
-      
+
       console.log('Base de datos reinicializada correctamente');
       return true;
-      
+
     } catch (error) {
       console.error('Error reinicializando BD:', error);
       await this.db.executeSql('PRAGMA foreign_keys = ON');

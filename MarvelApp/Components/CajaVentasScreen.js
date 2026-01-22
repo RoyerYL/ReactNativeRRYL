@@ -517,6 +517,33 @@ const CajaVentasScreen = () => {
                     </TouchableOpacity>
                   </>
                 )}
+                
+              </View>
+              <View style={styles.cajaActions}>
+                
+                  
+
+                  <TouchableOpacity
+                    style={[styles.cajaButton, styles.abrirCajaButton]}
+                    onPress={() => navigation.navigate('ExtraccionesScreen')}
+                  >
+                    <Text style={styles.cajaButtonText}>Extracciones</Text>
+                  </TouchableOpacity>
+                
+                
+              </View>
+              <View style={styles.cajaActions}>
+                
+                  
+
+                  <TouchableOpacity
+                    style={[styles.cajaButton, styles.abrirCajaButton]}
+                    onPress={() => navigation.navigate('Reportes')}
+                  >
+                    <Text style={styles.cajaButtonText}>Reportes</Text>
+                  </TouchableOpacity>
+                
+                
               </View>
             </View>
           </View>
