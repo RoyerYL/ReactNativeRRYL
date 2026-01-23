@@ -14,7 +14,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ItemCard from './ItemCard';
 
 // Importa la base de datos SQLite
@@ -76,6 +76,26 @@ const SheetView = () => {
   const [cambio, setCambio] = useState(0);
   const [observaciones, setObservaciones] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshAll();
+    }, [])
+  );
+  const refreshAll = async () => {
+  try {
+    console.log('🔄 Refrescando datos desde SQLite...');
+    setRefreshing(true);
+
+    await cargarDatos();
+    await cargarPromocionesActivas();
+    await verificarCaja();
+
+  } catch (e) {
+    console.error('Error refrescando datos:', e);
+  } finally {
+    setRefreshing(false);
+  }
+};
 
   /* ====== INICIALIZAR BASE DE DATOS ====== */
   useEffect(() => {
@@ -83,7 +103,7 @@ const SheetView = () => {
       await initializeDatabase();
     };
     init();
-    
+
     const updateLayout = () => {
       setNumColumns(calculateColumns());
     };
@@ -405,12 +425,12 @@ ${venta.detalles.map(item =>
     setCart((prev) => {
       const existe = prev.find((i) => i.id === item.id && i.price === precioFinal);
       if (existe) return prev;
-      return [...prev, { 
-        id: item.id, 
-        name: item.name, 
-        imageKey: item.imageKey, 
+      return [...prev, {
+        id: item.id,
+        name: item.name,
+        imageKey: item.imageKey,
         price: precioFinal,
-        db_id: item.db_id 
+        db_id: item.db_id
       }];
     });
 
@@ -580,22 +600,6 @@ ${venta.detalles.map(item =>
             agregarAlCarrito(item, precioFinal)
           }
         />
-
-        {/* BOTÓN AGREGAR */}
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() =>
-            agregarAlCarrito({
-              ...item,
-              price: precioFinal,
-              usaPrecio2,
-            }, precioFinal)
-          }
-        >
-          <Text style={styles.addBtnText}>
-            ${Number(precioFinal || 0).toLocaleString()}
-          </Text>
-        </TouchableOpacity>
       </View>
     );
   };
@@ -720,7 +724,7 @@ ${venta.detalles.map(item =>
           <Text style={styles.total}>
             TOTAL: ${total.toLocaleString("es-AR")}
           </Text>
-          
+
           <TouchableOpacity
             style={styles.checkoutBtn}
             onPress={abrirCheckout}
@@ -732,80 +736,6 @@ ${venta.detalles.map(item =>
           </TouchableOpacity>
         </View>
       )}
-
-      {/* MODAL DE OPCIONES DE PROMOCIÓN */}
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Crear Promoción para {'\n'}
-              <Text style={styles.modalCocktailName}>
-                {cocktailSeleccionado?.name}
-              </Text>
-            </Text>
-
-            <TouchableOpacity
-              style={styles.promoOption}
-              onPress={crearPromocion2por3000}
-            >
-              <View style={styles.promoOptionHeader}>
-                <Text style={styles.promoOptionTitle}>🎯 2 por $3000</Text>
-                <Text style={styles.promoOptionBadge}>POPULAR</Text>
-              </View>
-              <Text style={styles.promoOptionDesc}>
-                Precio normal: ${(cocktailSeleccionado?.precio1 || 3500) * 2} → Promo: $3000
-              </Text>
-              <Text style={styles.promoOptionAhorro}>
-                Ahorro: ${((cocktailSeleccionado?.precio1 || 3500) * 2 - 3000).toLocaleString()} (${(((cocktailSeleccionado?.precio1 || 3500) * 2 - 3000) / 2).toFixed(0)} c/u)
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.promoOption}
-              onPress={crearPromocion2x1}
-            >
-              <View style={styles.promoOptionHeader}>
-                <Text style={styles.promoOptionTitle}>🔥 2x1</Text>
-                <Text style={styles.promoOptionBadge}>CLÁSICO</Text>
-              </View>
-              <Text style={styles.promoOptionDesc}>
-                Llevá 2 cócteles y pagá solo 1
-              </Text>
-              <Text style={styles.promoOptionAhorro}>
-                Ahorro: ${(cocktailSeleccionado?.precio1 || 3500).toLocaleString()} por cada par
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.promoOption}
-              onPress={crearDescuentoPorcentaje}
-            >
-              <View style={styles.promoOptionHeader}>
-                <Text style={styles.promoOptionTitle}>💫 Descuento %</Text>
-                <Text style={styles.promoOptionBadge}>FLEXIBLE</Text>
-              </View>
-              <Text style={styles.promoOptionDesc}>
-                Ejemplo: 20% de descuento = ${((cocktailSeleccionado?.precio1 || 3500) * 0.2).toFixed(0)} OFF
-              </Text>
-              <Text style={styles.promoOptionAhorro}>
-                Aplica para cualquier cantidad
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.closeModalBtn}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.closeModalText}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* MODAL DE CHECKOUT */}
       <Modal

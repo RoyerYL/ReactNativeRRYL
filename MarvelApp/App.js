@@ -7,6 +7,7 @@ import SheetView from './Components/ShettView';
 import CajaVentasScreen from './Components/CajaVentasScreen';
 import ReportesScreen from './Components/ReportesScreen';
 import ExtraccionesScreen from './Components/ExtraccionesScreen';
+import CocktailForm from './Components/CocktailForm';
 
 const Stack = createNativeStackNavigator();
 
@@ -80,6 +81,19 @@ export default function App() {
          <Stack.Screen 
           name="ExtraccionesScreen"
           component={ExtraccionesScreen}
+          options={{
+            title: 'Ventas & Caja',
+            headerStyle: { backgroundColor: '#003b77' },
+            headerTintColor: '#fff',
+            headerTitleStyle: { fontWeight: 'bold', fontSize: 20 },
+            headerTitleAlign: 'center',
+            headerBackTitle: 'Atrás',
+          }} 
+        />
+        
+         <Stack.Screen 
+          name="CocktailForm"
+          component={CocktailForm}
           options={{
             title: 'Ventas & Caja',
             headerStyle: { backgroundColor: '#003b77' },

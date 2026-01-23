@@ -421,9 +421,15 @@ const PreciosScreen = () => {
                 </View>
             </View>
 
-            <View style={styles.editIcon}>
-                <Text style={styles.editIconText}>✏️</Text>
-            </View>
+
+            <TouchableOpacity
+                      style={styles.editIcon}
+                      onPress={() => navigation.navigate('CocktailForm', { cocktailId: item.id })}
+                    >
+                      <Text style={styles.editIconText}>
+                        ✏️
+                      </Text>
+                    </TouchableOpacity>
         </TouchableOpacity>
     );
 
@@ -491,9 +497,9 @@ const PreciosScreen = () => {
             <View style={styles.header}>
                 <TouchableOpacity
                     style={styles.backButton}
-                    onPress={() => navigation.goBack()}
+                    onPress={() => navigation.navigate('CocktailForm')}
                 >
-                    <Text style={styles.backButtonText}>← Volver</Text>
+                    <Text style={styles.backButtonText}>Crear Cocktail</Text>
                 </TouchableOpacity>
 
                 <Text style={styles.headerTitle}>Gestión de Precios</Text>
