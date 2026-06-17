@@ -19,9 +19,10 @@
     "@react-navigation/stack": "^7.0.0",
     "axios": "^1.7.4",
     "dotenv": "^17.2.1",
+    "eas-cli": "^18.4.0",
+    "expo": "~53.0.22",
     "expo-file-system": "~18.1.11",
     "expo-linking": "^8.0.8",
-    "expo-sharing": "^14.0.7",
     "expo-sqlite": "^15.2.14",
     "expo-status-bar": "~2.2.3",
     "openai": "^5.13.1",
@@ -35,14 +36,13 @@
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "^5.4.0",
     "react-native-screens": "~4.11.1",
-    "react-native-share": "^12.2.0",
+    "react-native-share": "^12.2.6",
     "react-native-tab-view": "^4.1.2",
     "react-native-web": "^0.20.0",
     "react-redux": "^9.2.0",
     "redux": "^5.0.1",
     "sweetalert2": "^11.22.2",
-    "upgrade": "^1.1.0",
-    "expo": "~53.0.22"
+    "upgrade": "^1.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
